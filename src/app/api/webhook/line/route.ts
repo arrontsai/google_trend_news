@@ -8,11 +8,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const events = body.events;
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const events = body.events;
-
     for (const event of events) {
       // 1. Extract Target ID (supports User, Group, or Room)
       const source = event.source;
@@ -55,7 +50,7 @@ export async function POST(req: NextRequest) {
             console.error('Manual digest trigger failed:', err);
           }
         } else if (replyToken) {
-          await replyMessage(replyToken, `即時熱搜 LINE Bot 服務中！\n此對話已自動加入訂閱清單。\n\n傳送「新消息」可即時回報最新財經簡報。`);
+          await replyMessage(replyToken, `即時熱搜 LINE Bot 服務中！\n此對話（${sourceType}）已自動加入訂閱清單。\n\n傳送「新消息」可即時回報最新財經簡報。`);
         }
       } else if (event.type === 'follow' || event.type === 'join') {
         const replyToken = event.replyToken;
