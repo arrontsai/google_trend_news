@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { fetchGoogleTrends } from '@/lib/trends';
+import { fetchAllTrends } from '@/lib/trends';
 import { summarizeTrends } from '@/lib/ai-service';
 import { supabase } from '@/lib/supabase';
 import { pushMessage } from '@/lib/line';
@@ -20,8 +19,8 @@ export async function GET(req: NextRequest) {
   try {
     console.log('Starting daily digest...');
 
-    // 1. Fetch Trends
-    const trends = await fetchGoogleTrends();
+    // 1. Fetch Trends (Consolidated from Multiple Sources)
+    const trends = await fetchAllTrends();
     console.log(`Fetched ${trends.length} trends`);
 
     // 2. Summarize
