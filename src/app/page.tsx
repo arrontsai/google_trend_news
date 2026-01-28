@@ -108,24 +108,24 @@ export default async function Home() {
               </div>
 
               <p className="mb-6 text-indigo-100 text-sm leading-relaxed">
-                想在 LINE 即時收到每日摘要嗎？請掃碼加入並按照以下步驟完成設定：
+                台股晨報機器人已全面升級！現在只需完成以下簡單動作即可自動訂閱：
               </p>
               <ol className="space-y-4 text-sm font-medium">
                 <li className="flex gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs">1</span>
-                  <span>掃描上方 QR Code 加入您的 LINE Bot。</span>
+                  <span>掃描上方 QR Code 加入好友（或將 Bot 拉入群組）。</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs">2</span>
-                  <span>傳送「**新消息**」給 Bot。</span>
+                  <span>**系統會自動註冊**，每天 08:00 AM 準時發送簡報。</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs">3</span>
-                  <span>Bot 會自動回覆 User ID 並立即為您生成**最新簡報**。</span>
+                  <span>對 Bot 傳送「**新消息**」可即時生成盤中/盤後分析。</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs">4</span>
-                  <span>將該 ID 填入環境變數 `LINE_USER_ID`。</span>
+                  <span>封鎖機器人或退出群組將自動停止訂閱。</span>
                 </li>
               </ol>
             </section>
