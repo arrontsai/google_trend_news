@@ -11,11 +11,11 @@ export async function POST(req: NextRequest) {
       if (event.type === 'message') {
         const userId = event.source.userId;
         const replyToken = event.replyToken;
-        const messageText = event.message.text;
+        const messageText = (event.message.text || '').trim();
 
         console.log(`Received message from User ID: ${userId}: ${messageText}`);
 
-        if (messageText === '新消息') {
+        if (messageText === '新消息' || messageText === '新訊息' || messageText === '新新聞') {
           // 1. Reply immediately to acknowledge
           await replyMessage(replyToken, '正在為您生成最新台股晨報，請稍候... 📈');
           

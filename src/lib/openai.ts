@@ -13,35 +13,39 @@ const openai = new OpenAI({
 export async function summarizeWithOpenAI(trends: TrendItem[]): Promise<string> {
   if (trends.length === 0) return 'No trends found today.';
 
-  // Construct a prompt with source attribution
-  const trendList = trends.slice(0, 30).map((t, i) => `${i + 1}. [來源: ${t.source}] ${t.title}: ${(t.description || '').slice(0, 200)}`).join('\n');
-  const trendTitles = trends.slice(0, 15).map(t => t.title).join(' # ');
-  const prompt = `
-    你是專業的「台股晨報分析師」。請根據以下【新聞與社群資料】（整合自 Google Trends、PTT Stock、Google News 財經），撰寫一份深度台股早安晨報。
+  const todayStr = new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
+  const trendList = trends.slice(0, 30).map((t, i) => `${i + 1}. [來源: ${t.source}] ${t.title}`).join('\n');
+  const topKeywords = trends.slice(0, 5).map(t => t.title).join(' | ');
 
-    【新聞與社群資料】：
+  const prompt = `
+    今天是 ${todayStr}，你是專業的「台股晨報分析師」。請根據以下資料撰寫一份「極簡、乾貨、具洞察力」的台股重點整理。
+
+    資料來源摘要：
     ${trendList}
 
-    請針對以上資料，特別留意「法說會資訊」、「散戶情緒」、「國際外電」與「聰明錢動向」，產出一份晨報。
-    格式必須完全如下：
+    撰寫要求：
+    1. 內容必須「極度精簡」，避免廢話。
+    2. 強調「法說會關鍵字」、「產業趨勢」與「PTT 散戶情緒」。
+    3. 格式必須嚴格如下：
 
-    📌 今日重點（3 行內，擷取最具影響力的 1-2 則消息）
-    (這裡填寫內容)
+    今天是 ${todayStr}，這是您的台股重點整理：
 
-    🌏 國際影響 & 外電摘要
-    (這裡結合資料分析國際情勢與外電觀點)
+    📌 今日重點（100字內精華）
+    (精煉內容)
 
-    🏭 產業、族群與社群熱議
-    (這裡分析受影響的產業以及 PTT/Threads 上的討論焦點)
+    🌏 國際與外電觀點
+    (精煉內容)
 
-    📊 法人與資金解讀
-    (這裡分析可能的法人動向與市場情緒)
+    🏭 產業與社群熱議 (PTT/Threads)
+    (精煉內容)
 
-    ⚠️ 今日風險提醒
-    (這裡提醒投資風險)
+    📊 法人動向與資金
+    (精煉內容)
 
-    ---
-    # ${trendTitles}
+    ⚠️ 風險提醒
+    (一句話或短語)
+
+    關鍵字：${topKeywords}
   `;
 
   try {
