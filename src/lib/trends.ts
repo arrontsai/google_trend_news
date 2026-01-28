@@ -63,12 +63,51 @@ export async function fetchGoogleNewsTrends(): Promise<TrendItem[]> {
   }
 }
 
+export async function fetchThreadsTrends(): Promise<TrendItem[]> {
+  // Placeholder for Threads. Using Google News search for Threads as a workaround for now
+  try {
+    const THREADS_SEARCH_URL = 'https://news.google.com/rss/search?q=site:threads.net+%E5%8F%B0%E8%82%A1+%E8%82%A1%E5%B8%82&hl=zh-TW&gl=TW&ceid=TW:zh-Hant';
+    const feed = await parser.parseURL(THREADS_SEARCH_URL);
+    return feed.items.map(item => ({
+      title: item.title || '',
+      link: item.link || '',
+      pubDate: item.pubDate || '',
+      description: item.contentSnippet || item.content || '',
+      source: 'Threads (via News)'
+    }));
+  } catch (error) {
+    console.error('Error fetching Threads news:', error);
+    return [];
+  }
+}
+
+export async function fetchXTrends(): Promise<TrendItem[]> {
+  // Placeholder for X (Twitter). Will use X API if X_BEARER_TOKEN is provided.
+  // For now, using a specialized search via Google News for X financial updates
+  try {
+    const X_SEARCH_URL = 'https://news.google.com/rss/search?q=site:x.com+%E5%8F%B0%E8%82%A1+%E8%81%B0%E6%98%8E%E9%8C%A2&hl=zh-TW&gl=TW&ceid=TW:zh-Hant';
+    const feed = await parser.parseURL(X_SEARCH_URL);
+    return feed.items.map(item => ({
+      title: item.title || '',
+      link: item.link || '',
+      pubDate: item.pubDate || '',
+      description: item.contentSnippet || item.content || '',
+      source: 'X (via News)'
+    }));
+  } catch (error) {
+    console.error('Error fetching X news:', error);
+    return [];
+  }
+}
+
 export async function fetchAllTrends(): Promise<TrendItem[]> {
-  const [google, ptt, news] = await Promise.all([
+  const [google, ptt, news, threads, x] = await Promise.all([
     fetchGoogleTrends(),
     fetchPTTTrends(),
-    fetchGoogleNewsTrends()
+    fetchGoogleNewsTrends(),
+    fetchThreadsTrends(),
+    fetchXTrends()
   ]);
 
-  return [...google, ...ptt, ...news];
+  return [...google, ...ptt, ...news, ...threads, ...x];
 }
