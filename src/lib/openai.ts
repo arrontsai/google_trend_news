@@ -45,7 +45,7 @@ export async function summarizeWithOpenAI(trends: TrendItem[]): Promise<string> 
     ⚠️ 風險提醒
     (一句話或短語)
 
-    標的關鍵字：(格式：公司名(四位代碼):一兩句話摘要產業或重點觀點 | 用 | 分隔多個標的)
+    標的關鍵字：(格式：公司名(代碼): 摘要 | 用 | 分隔。代碼請包含台股四位數字或美股代號)
   `;
 
   try {
