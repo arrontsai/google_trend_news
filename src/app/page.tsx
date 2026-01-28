@@ -97,14 +97,27 @@ export default async function Home() {
               <h3 className="text-xl font-bold mb-4">LINE Bot Setup</h3>
               
               {/* QR Code Section */}
-              <div className="mb-6 rounded-xl bg-white p-3 shadow-inner inline-block">
-                <Image 
-                  src="/images/line-qr-code.png" 
-                  alt="LINE QR Code" 
-                  width={150} 
-                  height={150}
-                  className="rounded-lg"
-                />
+              <div className="mb-6 space-y-4 text-center">
+                <div className="inline-block rounded-xl bg-white p-3 shadow-inner">
+                  <Image 
+                    src="/images/line-qr-code.png" 
+                    alt="LINE QR Code" 
+                    width={150} 
+                    height={150}
+                    className="rounded-lg"
+                  />
+                </div>
+                <a 
+                  href="https://line.me/R/ti/p/@605cwpjk" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full rounded-full bg-[#06C755] py-2 text-sm font-bold text-white hover:bg-[#05b34c] transition-colors shadow-md"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M24 10.304c0-5.232-5.373-9.488-12-9.488S0 5.072 0 10.304c0 4.688 4.256 8.6 10 9.328.392.08.928.256 1.064.584.152.344.096.888.048 1.24-.04.288-.2.96.816.528 1.016-.44 5.488-3.328 7.488-5.712 2-2.392 4.584-1.12 4.584-5.968zM7.056 13.912c-.224 0-.408-.184-.408-.408V7.128c0-.224.184-.408.408-.408s.408.184.408.408v6.376c0 .224-.184.408-.408.408zm3.28 0c-.224 0-.408-.184-.408-.408V7.128c0-.224.184-.408.408-.408s.408.184.408.408v2.96h2.24V7.128c0-.224.184-.408.408-.408s.408.184.408.408v6.376c0 .224-.184.408-.408.408s-.408-.184-.408-.408V10.92h-2.24v2.584c0 .224-.184.408-.408.408zm6.544 0h-2.208c-.224 0-.408-.184-.408-.408V7.128c0-.224.184-.408.408-.408s.408.184.408.408v5.56h1.8c.224 0 .408.184.408.408s-.184.408-.408.408zm3.28-2.656c-.224 0-.408-.184-.408-.408V10.12h-1.688V9.176h1.688V8.224h-1.688V7.272c0-.224-.184-.408-.408-.408s-.408.184-.408.408v6.376c0 .224.184.408.408.408h2.096c.224 0 .408-.184.408-.408v-.952h.008z"/>
+                  </svg>
+                  直接加入 LINE 好友
+                </a>
               </div>
 
               <p className="mb-6 text-indigo-100 text-sm leading-relaxed">
