@@ -38,18 +38,36 @@ export async function generateAndSendDigest(targetUserId?: string) {
     }
 
     // 4. Send to LINE
-    const userId = targetUserId || process.env.LINE_USER_ID;
+    let userIds: string[] = [];
+    if (targetUserId) {
+      userIds = [targetUserId];
+    } else {
+      // Fetch all users from Supabase
+      const { data: users, error: userError } = await supabase
+        .from('line_users')
+        .select('user_id');
+      
+      if (!userError && users) {
+        userIds = users.map(u => u.user_id);
+      }
+      
+      // Fallback if DB is empty but env var exists
+      if (userIds.length === 0 && process.env.LINE_USER_ID) {
+        userIds = [process.env.LINE_USER_ID];
+      }
+    }
 
-    if (userId) {
-        await pushMessage(userId, summary);
+    if (userIds.length > 0) {
+        console.log(`Broadcasting to ${userIds.length} users...`);
+        await Promise.all(userIds.map(id => pushMessage(id, summary).catch(e => console.error(`Error sending to ${id}:`, e))));
+        
         // Update DB to mark as sent
         await supabase
             .from('daily_trends_summary')
             .update({ line_sent: true })
             .eq('id', data.id);
-        console.log(`Sent message to ${userId}`);
     } else {
-        console.log('No user ID provided, skipping message send.');
+        console.log('No user IDs found for broadcast.');
     }
 
     return { success: true, summary };
