@@ -4,7 +4,8 @@ const yahooFinance = new YahooFinance();
 
 export interface PriceTrend {
   symbol: string;
-  name: string;
+  nameZh: string | null;
+  nameEn: string | null;
   price: number | null;
   changePercent: number | null;
   currency: string;
@@ -25,19 +26,39 @@ function normalizeSymbol(ticker: string): string {
   return ticker;
 }
 
-export async function getPriceTrend(ticker: string): Promise<PriceTrend> {
+function isChinese(text: string): boolean {
+  return /[\u4e00-\u9fa5]/.test(text);
+}
+
+export async function getPriceTrend(ticker: string, displayName?: string): Promise<PriceTrend> {
   const symbol = normalizeSymbol(ticker);
   try {
     const result: any = await yahooFinance.quote(symbol);
     if (!result) {
       throw new Error(`Symbol ${symbol} not found`);
     }
+
+    const rawName = result.shortName || result.longName || ticker;
+    let nameZh: string | null = null;
+    let nameEn: string | null = null;
+
+    if (isChinese(rawName)) {
+      nameZh = rawName;
+    } else {
+      nameEn = rawName;
+    }
+
+    // If we have a display name from AI summary, and it's Chinese, preferred it
+    if (displayName && isChinese(displayName)) {
+      nameZh = displayName;
+    }
     
     return {
       symbol: result.symbol,
-      name: result.shortName || result.longName || ticker,
+      nameZh,
+      nameEn,
       price: result.regularMarketPrice || null,
-      changePercent: result.regularMarketChangePercent || null,
+      changePercent: result.regularMarketChangePercent ?? null,
       currency: result.currency || '',
     };
   } catch (error) {
@@ -51,21 +72,38 @@ export async function getPriceTrend(ticker: string): Promise<PriceTrend> {
         if (!otcResult) {
           throw new Error(`Symbol ${otcSymbol} not found`);
         }
+
+        const rawName = otcResult.shortName || otcResult.longName || ticker;
+        let nameZh: string | null = null;
+        let nameEn: string | null = null;
+
+        if (isChinese(rawName)) {
+          nameZh = rawName;
+        } else {
+          nameEn = rawName;
+        }
+
+        if (displayName && isChinese(displayName)) {
+          nameZh = displayName;
+        }
+
         return {
           symbol: otcResult.symbol,
-          name: otcResult.shortName || otcResult.longName || ticker,
+          nameZh,
+          nameEn,
           price: otcResult.regularMarketPrice || null,
-          changePercent: otcResult.regularMarketChangePercent || null,
+          changePercent: otcResult.regularMarketChangePercent ?? null,
           currency: otcResult.currency || '',
         };
       } catch (otcError) {
-        // Silently fail for OTC attempt, will return "No data" below
+        // Silently fail for OTC attempt
       }
     }
 
     return {
       symbol,
-      name: ticker,
+      nameZh: (displayName && isChinese(displayName)) ? displayName : null,
+      nameEn: ticker,
       price: null,
       changePercent: null,
       currency: '',
@@ -74,12 +112,19 @@ export async function getPriceTrend(ticker: string): Promise<PriceTrend> {
 }
 
 export function formatPriceTrend(trend: PriceTrend): string {
-  if (trend.price === null || trend.changePercent === null) {
-    return `- ${trend.name} (${trend.symbol}): 暫無數據`;
+  if (trend.price === null) {
+    const name = trend.nameZh || trend.nameEn || trend.symbol;
+    return `- ${name} (${trend.symbol}): 暫無數據`;
+  }
+
+  const name = trend.nameZh || trend.nameEn || trend.symbol;
+  
+  if (trend.changePercent === null) {
+    return `- ${name} (${trend.symbol}): ${trend.price.toFixed(2)}`;
   }
 
   const sign = trend.changePercent >= 0 ? '+' : '';
   const emoji = trend.changePercent >= 0 ? '🔺' : '🔻';
   
-  return `- ${trend.name} (${trend.symbol}): ${trend.price.toFixed(2)} (${sign}${trend.changePercent.toFixed(2)}%) ${emoji}`;
+  return `- ${name} (${trend.symbol}): ${trend.price.toFixed(2)} (${sign}${trend.changePercent.toFixed(2)}%) ${emoji}`;
 }

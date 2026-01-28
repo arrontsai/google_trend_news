@@ -18,16 +18,28 @@ export async function generateAndSendDigest(targetUserId?: string) {
     console.log('AI Summary generated successfully.');
 
     // 2.5 Extract Tickers and Add Price Trends
-    const tickerRegex = /\(([\dA-Z.\^]{3,10})\)/g;
+    // Look for patterns like Name(Ticker)
+    const tickerRegex = /([\u4e00-\u9fa5\w\s]+)\(([\dA-Z.\^]{3,10})\)/g;
     const matches = Array.from(summary.matchAll(tickerRegex));
-    const uniqueTickers = Array.from(new Set(matches.map(m => m[1])));
+    
+    // Create a map of ticker -> name for uniqueness and name recall
+    const tickerMap = new Map<string, string>();
+    matches.forEach(m => {
+      const name = m[1].trim();
+      const ticker = m[2];
+      if (!tickerMap.has(ticker)) {
+        tickerMap.set(ticker, name);
+      }
+    });
 
     let finalSummary = summary;
     let trackedStocks: any[] = [];
 
-    if (uniqueTickers.length > 0) {
-      console.log(`Fetching prices for: ${uniqueTickers.join(', ')}`);
-      const priceResults = await Promise.all(uniqueTickers.map(t => getPriceTrend(t)));
+    if (tickerMap.size > 0) {
+      console.log(`Fetching prices for: ${Array.from(tickerMap.keys()).join(', ')}`);
+      const priceResults = await Promise.all(
+        Array.from(tickerMap.entries()).map(([ticker, name]) => getPriceTrend(ticker, name))
+      );
       const filteredPrices = priceResults.filter(p => p.price !== null);
       trackedStocks = filteredPrices;
       
@@ -67,7 +79,8 @@ export async function generateAndSendDigest(targetUserId?: string) {
         summary_id: data.id,
         date: today,
         symbol: stock.symbol,
-        name: stock.name,
+        name_zh: stock.nameZh,
+        name_en: stock.nameEn,
         price: stock.price,
         change_percent: stock.changePercent,
         currency: stock.currency,
