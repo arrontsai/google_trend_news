@@ -44,7 +44,7 @@ export async function summarizeWithGemini(trends: TrendItem[]): Promise<string> 
     ⚠️ 風險提醒
     (一句話或短語)
 
-    關鍵字：${topKeywords}
+    關鍵字：(請優先提取資料中出現的 4 位數股票代碼，如 2330, 2303，並搭配 3-5 個核心關鍵字，用 | 分隔)
   `;
 
   try {
