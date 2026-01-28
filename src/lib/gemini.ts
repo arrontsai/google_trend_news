@@ -12,7 +12,7 @@ export async function summarizeWithGemini(trends: TrendItem[]): Promise<string> 
 
   if (trends.length === 0) return 'No trends found today.';
 
-  const trendList = trends.slice(0, 10).map((t, i) => `${i + 1}. ${t.title}: ${t.description.slice(0, 300)}`).join('\n');
+  const trendList = trends.slice(0, 10).map((t, i) => `${i + 1}. ${t.title}: ${(t.description || '').slice(0, 300)}`).join('\n');
   const prompt = `
     你是專業的新聞編輯。請根據以下台灣 Google Trends 熱門關鍵字，撰寫一份簡潔的每日摘要報告。
     
