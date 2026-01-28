@@ -17,15 +17,15 @@ export async function POST(req: NextRequest) {
 
         if (messageText === '新消息' || messageText === '新訊息' || messageText === '新新聞') {
           // 1. Reply immediately to acknowledge
-          await replyMessage(replyToken, '正在為您生成最新台股晨報，請稍候... 📈');
+          await replyMessage(replyToken, '正在為您生成最新台股晨報，請稍候... 📈（處理中，約需 10-15 秒）');
           
-          // 2. Trigger digest generation (async)
-          // Note: In Vercel, this might be cut off if it takes too long.
-          // Ideally we would use a queue, but for now we try to run it.
-          // We don't await it here to finish the POST request quickly.
-          generateAndSendDigest(userId).catch(err => {
+          // 2. Trigger digest generation and WAIT for it
+          try {
+            await generateAndSendDigest(userId);
+            console.log('Manual digest generated and sent successfully.');
+          } catch (err) {
             console.error('Manual digest trigger failed:', err);
-          });
+          }
         } else if (replyToken) {
           await replyMessage(replyToken, `即時熱搜 LINE Bot 已部署成功！\n您的 User ID 是：\n${userId}\n\n傳送「新消息」可即時回報最新財經簡報。`);
         }

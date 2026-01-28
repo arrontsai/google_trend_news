@@ -8,12 +8,13 @@ export async function generateAndSendDigest(targetUserId?: string) {
     console.log('Generating digest...');
 
     // 1. Fetch Trends (Consolidated from Multiple Sources)
+    console.log('Fetching trends from PTT, Google News, Trends, X...');
     const trends = await fetchAllTrends();
-    console.log(`Fetched ${trends.length} trends`);
+    console.log(`Fetched ${trends.length} items. Starting AI summarization...`);
 
     // 2. Summarize
     const summary = await summarizeTrends(trends);
-    console.log('Generated summary');
+    console.log('AI Summary generated successfully.');
 
     // 3. Save to Supabase
     const today = new Date().toISOString().split('T')[0];
