@@ -66,7 +66,6 @@ export default async function Home() {
                         </pre>
                       </div>
                       <div className="mt-6 flex items-center gap-4 border-t border-zinc-100 pt-6 dark:border-zinc-800">
-                      <div className="mt-6 flex items-center gap-4 border-t border-zinc-100 pt-6 dark:border-zinc-800">
                         <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
                           Source: Multi-Source (PTT / News / Trends / X)
                         </span>
