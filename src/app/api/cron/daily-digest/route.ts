@@ -1,3 +1,4 @@
+import { NextRequest, NextResponse } from 'next/server';
 import { fetchAllTrends } from '@/lib/trends';
 import { summarizeTrends } from '@/lib/ai-service';
 import { supabase } from '@/lib/supabase';
