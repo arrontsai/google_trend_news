@@ -66,8 +66,9 @@ export default async function Home() {
                         </pre>
                       </div>
                       <div className="mt-6 flex items-center gap-4 border-t border-zinc-100 pt-6 dark:border-zinc-800">
+                      <div className="mt-6 flex items-center gap-4 border-t border-zinc-100 pt-6 dark:border-zinc-800">
                         <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                          Source: Google Trends RSS
+                          Source: Multi-Source (PTT / News / Trends / X)
                         </span>
                         {item.line_sent && (
                           <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
@@ -86,25 +87,37 @@ export default async function Home() {
           <div className="space-y-8">
             <section className="rounded-2xl bg-indigo-600 p-8 text-white">
               <h3 className="text-xl font-bold mb-4">LINE Bot Setup</h3>
+              
+              {/* QR Code Section */}
+              <div className="mb-6 rounded-xl bg-white p-3 shadow-inner inline-block">
+                <Image 
+                  src="/images/line-qr-code.png" 
+                  alt="LINE QR Code" 
+                  width={150} 
+                  height={150}
+                  className="rounded-lg"
+                />
+              </div>
+
               <p className="mb-6 text-indigo-100 text-sm leading-relaxed">
-                想在 LINE 即時收到每日摘要嗎？請按照以下步驟完成設定：
+                想在 LINE 即時收到每日摘要嗎？請掃碼加入並按照以下步驟完成設定：
               </p>
               <ol className="space-y-4 text-sm font-medium">
                 <li className="flex gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs">1</span>
-                  <span>掃描 QR Code 加入您的 LINE Bot 官方帳號。</span>
+                  <span>掃描上方 QR Code 加入您的 LINE Bot。</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs">2</span>
-                  <span>隨便傳送一段文字給 Bot。</span>
+                  <span>傳送「**新消息**」給 Bot。</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs">3</span>
-                  <span>Bot 會自動回覆您的 **User ID**。</span>
+                  <span>Bot 會自動回覆 User ID 並立即為您生成**最新簡報**。</span>
                 </li>
                 <li className="flex gap-3">
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs">4</span>
-                  <span>將該 ID 填入 `.env.local` 的 `LINE_USER_ID`。</span>
+                  <span>將該 ID 填入環境變數 `LINE_USER_ID`。</span>
                 </li>
               </ol>
             </section>
