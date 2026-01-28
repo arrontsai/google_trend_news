@@ -30,7 +30,7 @@ export async function summarizeWithOpenAI(trends: TrendItem[]): Promise<string> 
 
     今天是 ${todayStr}，這是您的台股重點整理：
 
-    📌 今日重點（100字內精華）
+    📌 今日重點（150字內精華）
     (精煉內容)
 
     🌏 國際與外電觀點
