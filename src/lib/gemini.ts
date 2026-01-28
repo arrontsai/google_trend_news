@@ -24,7 +24,7 @@ export async function summarizeWithGemini(trends: TrendItem[]): Promise<string> 
 
     撰寫要求：
     1. 內容必須「極度精簡」，避免廢話。
-    2. 強調「法說會關鍵字」、「產業趨勢」與「PTT 散戶情緒」。
+    2. 強調「產能、訂單、盤前盤後動向、大漲大跌原因」、「法說會關鍵字」與「PTT 散戶情緒」。
     3. 格式必須嚴格如下：
 
     今天是 ${todayStr}，這是您的台股重點整理：
