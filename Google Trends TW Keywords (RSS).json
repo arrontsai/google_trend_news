@@ -1,0 +1,826 @@
+{
+  "name": "Google Trends TW Keywords (RSS)",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": [
+            {
+              "hour": 8,
+              "minute": 30
+            }
+          ]
+        }
+      },
+      "name": "08:30 Daily Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        640,
+        112
+      ],
+      "id": "f3282f94-a42e-450d-be8f-f09867a617d1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = new Date();\nd.setDate(d.getDate() - 1);\nconst y = d.toISOString().slice(0,10);\nreturn [{ json: { start_date: y, end_date: y } }];"
+      },
+      "name": "Prepare Date",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        400
+      ],
+      "id": "843993bd-f0a2-4e16-bbff-b45cd758c516"
+    },
+    {
+      "parameters": {
+        "url": "https://newsdata.io/api/1/news",
+        "options": {},
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "q",
+              "value": "台股 OR 加權指數 OR 台積電 OR 半導體 OR AI"
+            },
+            {
+              "name": "language",
+              "value": "zh"
+            },
+            {
+              "name": "country",
+              "value": "tw"
+            },
+            {
+              "name": "apiKey",
+              "value": "pub_07749191481b4047ab3155188eefaeaf"
+            },
+            {
+              "name": "category",
+              "value": "business"
+            }
+          ]
+        }
+      },
+      "name": "Fetch Taiwan Stock News",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        -176
+      ],
+      "id": "e5a3b228-1bb9-426f-973b-88715e92b15d"
+    },
+    {
+      "parameters": {
+        "url": "https://api.massive.com/v2/reference/news",
+        "options": {},
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "apikey",
+              "value": "_oMCsvf5pN31eTHQAhI3oELxkyWWc00z"
+            },
+            {
+              "name": "limit",
+              "value": "10"
+            },
+            {
+              "name": "sort",
+              "value": "published_utc"
+            }
+          ]
+        }
+      },
+      "name": "Fetch Global News (Massive)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        16
+      ],
+      "id": "5a855bbc-6c10-40a1-b0f9-7df6680c94d6"
+    },
+    {
+      "parameters": {
+        "url": "https://finnhub.io/api/v1/news",
+        "options": {},
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "token",
+              "value": "d5s4tb1r01qoo9r2l8j0d5s4tb1r01qoo9r2l8jg"
+            },
+            {
+              "name": "category",
+              "value": "general"
+            }
+          ]
+        }
+      },
+      "name": "Fetch Global News (Finnhub)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        208
+      ],
+      "id": "277df144-16fb-4f65-9b7b-0d5900782eb0"
+    },
+    {
+      "parameters": {
+        "url": "https://api.finmindtrade.com/api/v4/data",
+        "options": {},
+        "queryParametersUi": {
+          "parameter": [
+            {
+              "name": "dataset",
+              "value": "TaiwanStockTotalInstitutionalInvestors"
+            },
+            {
+              "name": "token",
+              "value": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNi0wMS0yNyAxMzo0MDoxMiIsInVzZXJfaWQiOiJ4eDAxNDc4eHgiLCJlbWFpbCI6Inh4MDE0Nzh4eEBnbWFpbC5jb20iLCJpcCI6IjIxMC41OC45MC4yNTQifQ.Ft-4kRLs3Ad-8f-hSjLMI-alj7ZL5WVUYAnYlqaW32o"
+            },
+            {
+              "name": "start_date",
+              "value": "={{$json.start_date}}"
+            },
+            {
+              "name": "end_date",
+              "value": "={{$json.end_date}}"
+            }
+          ]
+        }
+      },
+      "name": "Fetch Institutional Investors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        400
+      ],
+      "id": "de658bf6-3600-4572-90dd-f7421c6302df"
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = $json.data || [];\nif (!data.length) return [{ json: { instSummary: '無法人資料' } }];\n\nconst total = data.reduce((a,b)=>a+b.buy_sell,0);\nreturn [{ json: { instSummary: `三大法人昨日合計${total>0?'買超':'賣超'} ${Math.abs(total).toLocaleString()} 張` } }];"
+      },
+      "name": "Summarize Institutional",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1312,
+        400
+      ],
+      "id": "ca0648e5-3b7b-4e20-bf95-9b1ada7b939a"
+    },
+    {
+      "parameters": {},
+      "name": "Merge All Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        112
+      ],
+      "id": "a51eb038-7afb-4ffc-b01b-eb9a3cf4f870"
+    },
+    {
+      "parameters": {
+        "functionCode": "const items = $input.all();\nlet news = '';\nlet inst = '';\n\n// 遍歷每個來源\nfor (const i of items) {\n  const json = i.json;\n\n  // FinMind / Institutional\n  if (json.instSummary) {\n    inst = json.instSummary;\n  }\n\n  // NewsData.io\n  if (Array.isArray(json.results)) {\n    for (const n of json.results) {\n      const title = n.title || '未命名';\n      const desc = n.description || '';\n      news += `【${title}】\\n${desc}\\n\\n---\\n\\n`;\n    }\n  }\n\n  // Massive / Finnhub\n  if (json.title || json.headline) {\n    const title = json.title || json.headline;\n    const desc = json.description || json.summary || '';\n    news += `【${title}】\\n${desc}\\n\\n---\\n\\n`;\n  }\n}\n\nreturn [{ json: { newsText: news, instSummary: inst } }];\n"
+      },
+      "name": "Assemble Context",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        112
+      ],
+      "id": "9d8c9484-8bc8-47b5-93d2-07d3642a7feb"
+    },
+    {
+      "parameters": {
+        "modelId": "models/gemini-2.5-flash",
+        "messages": {
+          "values": [
+            {
+              "content": "=你是一位專業台股晨報分析師，請根據input新聞資料和近期股市和國際新聞重點\n【新聞資料】\n{{ $json.newsText }}\n\n請產出一份「台股早安晨報」，格式如下：\n\n📌 今日重點（3 行內）\n🌏 國際影響\n🏭 產業與族群\n📊 法人與資金解讀\n⚠️ 今日風險提醒\n然後搜尋: https://trends.google.com.tw/trending?geo=TW&category=3&hours=48\n獲取排行榜標題用 # 隔開放在回答最下方"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Generate Morning Brief",
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        1984,
+        112
+      ],
+      "id": "81c314b9-7d06-4bc9-9d0c-b5abe0222565",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "WnimJ1Ydv6022Yqy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://api.line.me/v2/bot/message/push",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"to\": \"YOUR_USER_ID\",\n  \"messages\": [\n    {\n      \"type\": \"text\",\n      \"text\": {{$json[\"text\"]}}\n    }\n  ]\n}\n",
+        "headerParametersJson": "{\"Authorization\": \"Bearer StujJjTWMO36Z/YkpRlQvAUYKuoZ0zh3C/evEWar/S3niWZcilHyXqBuFOx7qrarhoAXqYsWI1w7AFG0D6W+HiBwVI1/jIAMgLAypSSLFraEAWmh8OpSS3cQGAyUDoetAN9EHHAdmI+e3DSoMXTiJgdB04t89/1O/w1cDnyilFU=\",\n\"Content-Type\": \"application/json\"}"
+      },
+      "name": "Send LINE Notify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        2560,
+        112
+      ],
+      "id": "696235ec-f2c1-4eeb-8822-250c9b2cac5d"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 假設 n8n input 是 content.parts[0].text\nconst item = $input.all()[0].json;\n\nlet textMessage = \"\";\n\n// 先確認 content.parts 存在\nif (item.content && item.content.parts && item.content.parts.length > 0) {\n    textMessage = item.content.parts.map(p => p.text).join(\"\\n\");\n}\n\n// 回傳給下一個 HTTP Request Node\nreturn [{ json: { text: textMessage } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2336,
+        112
+      ],
+      "id": "439aa25a-0bd4-4304-932f-7d4c32c03e7e",
+      "name": "Code in JavaScript1"
+    }
+  ],
+  "pinData": {
+    "Merge All Sources": [
+      {
+        "json": {
+          "status": "success",
+          "totalResults": 690,
+          "results": [
+            {
+              "article_id": "0d142dbf8da4c8a43417f5b500f84358",
+              "link": "https://news.cnyes.com/news/id/6321935",
+              "title": "從泡麵大王到造車狂人!越南首富范日旺要把GSM送上港交所 造車夢能否靠它復活?",
+              "description": "越南首富范日旺的資本版圖正向港股延伸,這位曾靠泡麵起家的傳奇商人旗下綠色出行平台 GSM 最新傳出將赴港股上市,一旦成真有望成為「越南第一股,也為其陷入困境的造車夢注入新的變量。 范日旺的汽車夢始於 2017 年創立的 VinFast,這個號稱「越南特斯拉」的品牌承載著他打造全球認可民族工業品牌的",
+              "content": "ONLY AVAILABLE IN PAID PLANS",
+              "keywords": [
+                "新股上市"
+              ],
+              "creator": [
+                "鉅亨網編譯陳韋廷"
+              ],
+              "language": "chinese",
+              "country": [
+                "taiwan"
+              ],
+              "category": [
+                "business"
+              ],
+              "datatype": "news",
+              "pubDate": "2026-01-26 22:10:09",
+              "pubDateTZ": "UTC",
+              "fetched_at": "2026-01-26 22:15:02",
+              "image_url": "https://cimg.cnyes.cool/static/rss/default/m/04.jpg",
+              "video_url": null,
+              "source_id": "cnyes",
+              "source_name": "鉅亨網 - 財經新聞、全球指數、股市報價、商品行情、理財投資",
+              "source_priority": 34346,
+              "source_url": "https://www.cnyes.com",
+              "source_icon": "https://n.bytvi.com/cnyes.jpg",
+              "sentiment": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "sentiment_stats": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_tag": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_region": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_org": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_summary": "ONLY AVAILABLE IN PAID PLANS",
+              "duplicate": false
+            },
+            {
+              "article_id": "736b826236b3744e2a5a4fdd2a9000d8",
+              "link": "https://news.cnyes.com/news/id/6322811",
+              "title": "美光股價走弱近3% 三星HBM4傳獲輝達、AMD認證",
+              "description": "三星電子在高頻寬記憶體 (HBM) 領域的最新進展,正牽動相關族群股價表現。受此影響,美光 (MU-US) 股價週一走弱 2.64% 至每股 389.09 美元。",
+              "content": "ONLY AVAILABLE IN PAID PLANS",
+              "keywords": [
+                "美股雷達"
+              ],
+              "creator": [
+                "鉅亨網編譯羅昀玫"
+              ],
+              "language": "chinese",
+              "country": [
+                "taiwan"
+              ],
+              "category": [
+                "business"
+              ],
+              "datatype": "news",
+              "pubDate": "2026-01-26 21:47:23",
+              "pubDateTZ": "UTC",
+              "fetched_at": "2026-01-26 22:15:04",
+              "image_url": "https://cimg.cnyes.cool/static/rss/default/m/03.jpg",
+              "video_url": null,
+              "source_id": "cnyes",
+              "source_name": "鉅亨網 - 財經新聞、全球指數、股市報價、商品行情、理財投資",
+              "source_priority": 34346,
+              "source_url": "https://www.cnyes.com",
+              "source_icon": "https://n.bytvi.com/cnyes.jpg",
+              "sentiment": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "sentiment_stats": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_tag": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_region": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_org": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_summary": "ONLY AVAILABLE IN PAID PLANS",
+              "duplicate": false
+            },
+            {
+              "article_id": "903ac0b3a22de70f2d4105e69ba61892",
+              "link": "https://ec.ltn.com.tw/article/paper/1741562",
+              "title": "鴻海集團AI續強 工業富聯拓版圖 運營、技術雙向發力",
+              "description": "〔記者方韋傑/台北報導〕鴻海(2317)集團旗下工業富聯近年伴隨著集團發展路線,著重於AI伺服器領域的發展,該公司董事長鄭弘孟在內部活動定調,2026年將持續強化鞏固「技術力、製造力、加工力、整合力」四大核心優勢,此外,輪值CEO劉宗長(見圖,工業富聯提供)也拍板,要從「運營」與「技術」兩個層面雙向...",
+              "content": "ONLY AVAILABLE IN PAID PLANS",
+              "keywords": [
+                "鴻海集團",
+                "運營",
+                "技術",
+                "工業富聯",
+                "ai"
+              ],
+              "creator": [
+                "方韋傑"
+              ],
+              "language": "chinese",
+              "country": [
+                "taiwan"
+              ],
+              "category": [
+                "business"
+              ],
+              "datatype": "news",
+              "pubDate": "2026-01-26 21:30:00",
+              "pubDateTZ": "UTC",
+              "fetched_at": "2026-01-26 21:46:22",
+              "image_url": "https://img.ltn.com.tw/Upload/business/page/800/2026/01/27/118.jpg",
+              "video_url": null,
+              "source_id": "ltn",
+              "source_name": "Ltn",
+              "source_priority": 31633,
+              "source_url": "https://news.ltn.com.tw",
+              "source_icon": "https://n.bytvi.com/ltn.png",
+              "sentiment": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "sentiment_stats": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_tag": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_region": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_org": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_summary": "ONLY AVAILABLE IN PAID PLANS",
+              "duplicate": false
+            },
+            {
+              "article_id": "9d63bd9d3fe9bb3bc694d18f374c260c",
+              "link": "https://ec.ltn.com.tw/article/paper/1741504",
+              "title": "傳美日聯手干預 日圓急升、日股跌近千點",
+              "description": "〔編譯盧永山、記者陳梅英/綜合報導〕在美國和日本聯手干預日圓匯率的傳聞下,日圓持續走強,週一日圓兌美元一度漲至十一月中以來最高,日本股市則大跌近千點,日本十年公債價格上漲。上週有媒體報導,紐約聯邦準備銀行已對交易商實施日圓兌美元的「匯率檢查」,此舉被視為干預的前兆。美國財政部長貝森特近期也與日本...",
+              "content": "ONLY AVAILABLE IN PAID PLANS",
+              "keywords": [
+                "日圓",
+                "日股",
+                "台幣",
+                "美日干預",
+                "匯率檢查",
+                "日債"
+              ],
+              "creator": [
+                "自由時報電子報"
+              ],
+              "language": "chinese",
+              "country": [
+                "taiwan"
+              ],
+              "category": [
+                "business"
+              ],
+              "datatype": "news",
+              "pubDate": "2026-01-26 21:30:00",
+              "pubDateTZ": "UTC",
+              "fetched_at": "2026-01-26 21:46:26",
+              "image_url": "https://img.ltn.com.tw/Upload/business/page/800/2026/01/27/54.jpg",
+              "video_url": null,
+              "source_id": "ltn",
+              "source_name": "Ltn",
+              "source_priority": 31633,
+              "source_url": "https://news.ltn.com.tw",
+              "source_icon": "https://n.bytvi.com/ltn.png",
+              "sentiment": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "sentiment_stats": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_tag": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_region": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_org": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_summary": "ONLY AVAILABLE IN PAID PLANS",
+              "duplicate": false
+            },
+            {
+              "article_id": "cc28a91bdb0e785f29fbbe48c9b3fcda",
+              "link": "https://news.cnyes.com/news/id/6322807",
+              "title": "盤中速報 - 數據狗(DDOG-US)大漲5.01%,報136.65美元",
+              "description": "數據狗(DDOG-US)盤中上漲,漲跌幅、近日週月績效、相關指數表現、即時新聞資訊。",
+              "content": "ONLY AVAILABLE IN PAID PLANS",
+              "keywords": [
+                "美股盤中"
+              ],
+              "creator": [
+                "鉅亨網新聞中心"
+              ],
+              "language": "chinese",
+              "country": [
+                "taiwan"
+              ],
+              "category": [
+                "business"
+              ],
+              "datatype": "news",
+              "pubDate": "2026-01-26 20:23:05",
+              "pubDateTZ": "UTC",
+              "fetched_at": "2026-01-26 20:47:05",
+              "image_url": "https://cimg.cnyes.cool/static/rss/default/m/01.jpg",
+              "video_url": null,
+              "source_id": "cnyes",
+              "source_name": "鉅亨網 - 財經新聞、全球指數、股市報價、商品行情、理財投資",
+              "source_priority": 34346,
+              "source_url": "https://www.cnyes.com",
+              "source_icon": "https://n.bytvi.com/cnyes.jpg",
+              "sentiment": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "sentiment_stats": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_tag": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_region": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_org": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_summary": "ONLY AVAILABLE IN PAID PLANS",
+              "duplicate": false
+            },
+            {
+              "article_id": "555f2b133cc8110d6dc510f4a7729ab9",
+              "link": "https://news.cnyes.com/news/id/6322806",
+              "title": "盤中速報 - Atlassian Corporation - Class A(TEAM-US)大漲5.02%,報138.36美元",
+              "description": "Atlassian Corporation - Class A(TEAM-US)盤中上漲,漲跌幅、近日週月績效、相關指數表現、即時新聞資訊。",
+              "content": "ONLY AVAILABLE IN PAID PLANS",
+              "keywords": [
+                "美股盤中"
+              ],
+              "creator": [
+                "鉅亨網新聞中心"
+              ],
+              "language": "chinese",
+              "country": [
+                "taiwan"
+              ],
+              "category": [
+                "business"
+              ],
+              "datatype": "news",
+              "pubDate": "2026-01-26 20:20:57",
+              "pubDateTZ": "UTC",
+              "fetched_at": "2026-01-26 20:47:07",
+              "image_url": "https://cimg.cnyes.cool/static/rss/default/m/06.jpg",
+              "video_url": null,
+              "source_id": "cnyes",
+              "source_name": "鉅亨網 - 財經新聞、全球指數、股市報價、商品行情、理財投資",
+              "source_priority": 34346,
+              "source_url": "https://www.cnyes.com",
+              "source_icon": "https://n.bytvi.com/cnyes.jpg",
+              "sentiment": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "sentiment_stats": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_tag": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_region": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_org": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_summary": "ONLY AVAILABLE IN PAID PLANS",
+              "duplicate": false
+            },
+            {
+              "article_id": "298d522865fb51e926dca3a8e3f342a4",
+              "link": "https://udn.com/news/story/7240/9290436",
+              "title": "微軟推新一代AI晶片 採台積電3奈米製程",
+              "description": "微軟今天發表第2代自研人工智慧(AI)晶片,同時還提供一套軟體工具,目的在挑戰輝達在開發者圈內最大的競爭優勢之一,而這款名為Maia 200的晶片將採用台積電3奈米製程打造。路透社報導,微軟(Mic...",
+              "content": "ONLY AVAILABLE IN PAID PLANS",
+              "keywords": [
+                "產經"
+              ],
+              "creator": [
+                "舊金山26日綜合外電報導"
+              ],
+              "language": "chinese",
+              "country": [
+                "taiwan"
+              ],
+              "category": [
+                "business"
+              ],
+              "datatype": "news",
+              "pubDate": "2026-01-26 19:41:26",
+              "pubDateTZ": "UTC",
+              "fetched_at": "2026-01-26 20:12:42",
+              "image_url": "https://pgw.udn.com.tw/gw/photo.php?u=https%3A%2F%2Fudn.com%2Fupf%2F2017_news%2Fnoimg_cid6644_5.jpg",
+              "video_url": null,
+              "source_id": "udnnews",
+              "source_name": "Udnnewsindex",
+              "source_priority": 5879,
+              "source_url": "https://udn.com",
+              "source_icon": "https://n.bytvi.com/udnnews.jpg",
+              "sentiment": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "sentiment_stats": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_tag": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_region": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_org": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_summary": "ONLY AVAILABLE IN PAID PLANS",
+              "duplicate": true
+            },
+            {
+              "article_id": "507fdaa7d1cef7ae331471ed9e5fb236",
+              "link": "https://news.cnyes.com/news/id/6322798",
+              "title": "盤中速報 - 貝克休斯(BKR-US)大漲5.03%,報56.63美元",
+              "description": "貝克休斯(BKR-US)盤中上漲,漲跌幅、近日週月績效、相關指數表現、即時新聞資訊。",
+              "content": "ONLY AVAILABLE IN PAID PLANS",
+              "keywords": [
+                "美股盤中"
+              ],
+              "creator": [
+                "鉅亨網新聞中心"
+              ],
+              "language": "chinese",
+              "country": [
+                "taiwan"
+              ],
+              "category": [
+                "business"
+              ],
+              "datatype": "news",
+              "pubDate": "2026-01-26 19:40:51",
+              "pubDateTZ": "UTC",
+              "fetched_at": "2026-01-26 19:45:29",
+              "image_url": "https://cimg.cnyes.cool/static/rss/default/m/05.jpg",
+              "video_url": null,
+              "source_id": "cnyes",
+              "source_name": "鉅亨網 - 財經新聞、全球指數、股市報價、商品行情、理財投資",
+              "source_priority": 34346,
+              "source_url": "https://www.cnyes.com",
+              "source_icon": "https://n.bytvi.com/cnyes.jpg",
+              "sentiment": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "sentiment_stats": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_tag": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_region": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_org": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_summary": "ONLY AVAILABLE IN PAID PLANS",
+              "duplicate": false
+            },
+            {
+              "article_id": "a84f3faa6c119ebd74fe5719180730f6",
+              "link": "https://news.cnyes.com/news/id/6322755",
+              "title": "AI狂潮+政府撒錢推升風險!橋水基金避開債券",
+              "description": "綜合外媒周一 (26 日) 報導,橋水基金 (Bridgewater Associates) 共同投資長指出,全球企業對人工智慧 (AI) 的投資熱潮仍將持續快速擴大,並可能重塑經濟結構,同時也帶來通膨與資產泡沫風險,使債券面臨更具挑",
+              "content": "ONLY AVAILABLE IN PAID PLANS",
+              "keywords": [
+                "美股雷達"
+              ],
+              "creator": [
+                "鉅亨網編譯段智恆 綜合外電"
+              ],
+              "language": "chinese",
+              "country": [
+                "taiwan"
+              ],
+              "category": [
+                "business"
+              ],
+              "datatype": "news",
+              "pubDate": "2026-01-26 19:30:02",
+              "pubDateTZ": "UTC",
+              "fetched_at": "2026-01-26 19:45:30",
+              "image_url": "https://cimg.cnyes.cool/static/rss/default/m/05.jpg",
+              "video_url": null,
+              "source_id": "cnyes",
+              "source_name": "鉅亨網 - 財經新聞、全球指數、股市報價、商品行情、理財投資",
+              "source_priority": 34346,
+              "source_url": "https://www.cnyes.com",
+              "source_icon": "https://n.bytvi.com/cnyes.jpg",
+              "sentiment": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "sentiment_stats": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_tag": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_region": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_org": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_summary": "ONLY AVAILABLE IN PAID PLANS",
+              "duplicate": false
+            },
+            {
+              "article_id": "f86417e64be979062664d5c160bbe26e",
+              "link": "https://www.ctee.com.tw/news/20260127700032-430705",
+              "title": "美國|軟銀暫停美國資料中心營運商Switch收購協商",
+              "description": "外媒引述消息報導,軟銀集團已暫停收購美國資料中心營運商 Switch 的談判,這對執行長孫正義布局AI的雄心來說是一大挫敗。孫正義一直試圖以約500億美元價格收購Switch。消息人士表示,孫正義本月初坦言全面收購已經是不可能的事。",
+              "content": "ONLY AVAILABLE IN PAID PLANS",
+              "keywords": null,
+              "creator": [
+                "工商時報"
+              ],
+              "language": "chinese",
+              "country": [
+                "taiwan"
+              ],
+              "category": [
+                "business",
+                "top"
+              ],
+              "datatype": "news",
+              "pubDate": "2026-01-26 18:14:41",
+              "pubDateTZ": "UTC",
+              "fetched_at": "2026-01-26 18:14:41",
+              "image_url": null,
+              "video_url": null,
+              "source_id": "ctee_tw",
+              "source_name": "工商時報",
+              "source_priority": 32784,
+              "source_url": "https://www.ctee.com.tw",
+              "source_icon": "https://n.bytvi.com/ctee_tw.png",
+              "sentiment": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "sentiment_stats": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_tag": "ONLY AVAILABLE IN PROFESSIONAL AND CORPORATE PLANS",
+              "ai_region": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_org": "ONLY AVAILABLE IN CORPORATE PLANS",
+              "ai_summary": "ONLY AVAILABLE IN PAID PLANS",
+              "duplicate": false
+            }
+          ],
+          "nextPage": "1769451281018866624"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ],
+    "Assemble Context": [
+      {
+        "json": {
+          "newsText": "【從泡麵大王到造車狂人!越南首富范日旺要把GSM送上港交所 造車夢能否靠它復活?】\n越南首富范日旺的資本版圖正向港股延伸,這位曾靠泡麵起家的傳奇商人旗下綠色出行平台 GSM 最新傳出將赴港股上市,一旦成真有望成為「越南第一股,也為其陷入困境的造車夢注入新的變量。 范日旺的汽車夢始於 2017 年創立的 VinFast,這個號稱「越南特斯拉」的品牌承載著他打造全球認可民族工業品牌的\n\n---\n\n【美光股價走弱近3% 三星HBM4傳獲輝達、AMD認證】\n三星電子在高頻寬記憶體 (HBM) 領域的最新進展,正牽動相關族群股價表現。受此影響,美光 (MU-US) 股價週一走弱 2.64% 至每股 389.09 美元。\n\n---\n\n【鴻海集團AI續強 工業富聯拓版圖 運營、技術雙向發力】\n〔記者方韋傑/台北報導〕鴻海(2317)集團旗下工業富聯近年伴隨著集團發展路線,著重於AI伺服器領域的發展,該公司董事長鄭弘孟在內部活動定調,2026年將持續強化鞏固「技術力、製造力、加工力、整合力」四大核心優勢,此外,輪值CEO劉宗長(見圖,工業富聯提供)也拍板,要從「運營」與「技術」兩個層面雙向...\n\n---\n\n【傳美日聯手干預 日圓急升、日股跌近千點】\n〔編譯盧永山、記者陳梅英/綜合報導〕在美國和日本聯手干預日圓匯率的傳聞下,日圓持續走強,週一日圓兌美元一度漲至十一月中以來最高,日本股市則大跌近千點,日本十年公債價格上漲。上週有媒體報導,紐約聯邦準備銀行已對交易商實施日圓兌美元的「匯率檢查」,此舉被視為干預的前兆。美國財政部長貝森特近期也與日本...\n\n---\n\n【盤中速報 - 數據狗(DDOG-US)大漲5.01%,報136.65美元】\n數據狗(DDOG-US)盤中上漲,漲跌幅、近日週月績效、相關指數表現、即時新聞資訊。\n\n---\n\n【盤中速報 - Atlassian Corporation - Class A(TEAM-US)大漲5.02%,報138.36美元】\nAtlassian Corporation - Class A(TEAM-US)盤中上漲,漲跌幅、近日週月績效、相關指數表現、即時新聞資訊。\n\n---\n\n【微軟推新一代AI晶片 採台積電3奈米製程】\n微軟今天發表第2代自研人工智慧(AI)晶片,同時還提供一套軟體工具,目的在挑戰輝達在開發者圈內最大的競爭優勢之一,而這款名為Maia 200的晶片將採用台積電3奈米製程打造。路透社報導,微軟(Mic...\n\n---\n\n【盤中速報 - 貝克休斯(BKR-US)大漲5.03%,報56.63美元】\n貝克休斯(BKR-US)盤中上漲,漲跌幅、近日週月績效、相關指數表現、即時新聞資訊。\n\n---\n\n【AI狂潮+政府撒錢推升風險!橋水基金避開債券】\n綜合外媒周一 (26 日) 報導,橋水基金 (Bridgewater Associates) 共同投資長指出,全球企業對人工智慧 (AI) 的投資熱潮仍將持續快速擴大,並可能重塑經濟結構,同時也帶來通膨與資產泡沫風險,使債券面臨更具挑\n\n---\n\n【美國|軟銀暫停美國資料中心營運商Switch收購協商】\n外媒引述消息報導,軟銀集團已暫停收購美國資料中心營運商 Switch 的談判,這對執行長孫正義布局AI的雄心來說是一大挫敗。孫正義一直試圖以約500億美元價格收購Switch。消息人士表示,孫正義本月初坦言全面收購已經是不可能的事。\n\n---\n\n",
+          "instSummary": ""
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "connections": {
+    "08:30 Daily Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Taiwan Stock News",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Global News (Massive)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Global News (Finnhub)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Date": {
+      "main": [
+        [
+          {
+            "node": "Fetch Institutional Investors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Institutional Investors": {
+      "main": [
+        [
+          {
+            "node": "Summarize Institutional",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Taiwan Stock News": {
+      "main": [
+        [
+          {
+            "node": "Merge All Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Global News (Massive)": {
+      "main": [
+        [
+          {
+            "node": "Merge All Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Global News (Finnhub)": {
+      "main": [
+        [
+          {
+            "node": "Merge All Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize Institutional": {
+      "main": [
+        [
+          {
+            "node": "Merge All Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge All Sources": {
+      "main": [
+        [
+          {
+            "node": "Assemble Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Context": {
+      "main": [
+        [
+          {
+            "node": "Generate Morning Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Morning Brief": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Send LINE Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "359db1ef-3ff2-4cd8-a7a2-1e5b0f40b7f3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "252ae7d33ef7d834662ab466eddb58523a1f6071a7be1de4531f12656c25520e"
+  },
+  "id": "MScUV5Ygkqr38D5MvMCXe",
+  "tags": []
+}
