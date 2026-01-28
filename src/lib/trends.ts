@@ -2,7 +2,7 @@ import Parser from 'rss-parser';
 
 const parser = new Parser();
 const GEO = 'TW';
-const TRENDS_URL = `https://trends.google.com.tw/trending/rss?geo=${GEO}`;
+const TRENDS_URL = `https://trends.google.com.tw/trending/rss?geo=${GEO}&cat=b`;
 
 export interface TrendItem {
   title: string;

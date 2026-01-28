@@ -19,6 +19,9 @@ for SELECT
 to public
 using (true);
 
--- Create a policy that allows insert/update only for service role (backend)
--- Since we are using Service Role Key in the backend, we bypass RLS, 
--- but it's good practice to keep RLS enabled.
+-- Create a policy that allows all operations (Insert/Update/Delete) for backend service
+create policy "Enable all access for backend service"
+on "public"."daily_trends_summary"
+for all
+using (true)
+with check (true);
