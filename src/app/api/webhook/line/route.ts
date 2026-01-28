@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { replyMessage } from '@/lib/line';
-import { generateAndSendDigest } from '@/lib/digest-service';
+import { generateAndSendDigest, sendLatestStockPrices } from '@/lib/digest-service';
 import { supabase } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
@@ -49,12 +49,18 @@ export async function POST(req: NextRequest) {
           } catch (err) {
             console.error('Manual digest trigger failed:', err);
           }
+        } else if (messageText === '股票價格' || messageText === '查詢價格') {
+          try {
+            await sendLatestStockPrices(targetId);
+          } catch (err) {
+            console.error('Price query failed:', err);
+          }
         } else if (replyToken) {
-          await replyMessage(replyToken, `即時熱搜 LINE Bot 服務中！\n此對話（${sourceType}）已自動加入訂閱清單。\n\n傳送「新消息」可即時回報最新財經簡報。`);
+          await replyMessage(replyToken, `即時熱搜 LINE Bot 服務中！\n此對話（${sourceType}）已自動加入訂閱清單。\n\n傳送「新消息」回報最新簡報。\n傳送「股票價格」查詢分析中標的的最近走勢。`);
         }
       } else if (event.type === 'follow' || event.type === 'join') {
         const replyToken = event.replyToken;
-        await replyMessage(replyToken, `歡迎使用台股晨報服務！\n此對話（${sourceType}）已自動存入派送資料庫。\n\n每日 08:00 AM 將自動發送最新晨報。\n傳送「新消息」可立即獲取最新簡報。`);
+        await replyMessage(replyToken, `歡迎使用台股晨報服務！\n此對話（${sourceType}）已自動存入派送資料庫。\n\n每日 08:00 AM 將自動發送最新晨報。\n傳送「新消息」可立即獲取最新簡報。\n傳送「股票價格」可查看簡報中標的的漲跌幅。`);
       }
     }
 
