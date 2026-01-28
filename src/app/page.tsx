@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
+import TriggerButton from '@/components/TriggerButton';
 
 // Force dynamic rendering to ensure fresh data
 export const dynamic = 'force-dynamic';
@@ -84,6 +85,14 @@ export default async function Home() {
 
           {/* Sidebar: Setup Guide */}
           <div className="space-y-8">
+            <section className="rounded-2xl border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900/50">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-500 mb-4 text-center">手動控制台</h3>
+              <TriggerButton />
+              <p className="mt-4 text-[10px] text-zinc-400 text-center leading-relaxed">
+                點擊按鈕將即時抓取 PTT/Trends 最新資料並更新網頁與 LINE。
+              </p>
+            </section>
+
             <section className="rounded-2xl bg-indigo-600 p-8 text-white">
               <h3 className="text-xl font-bold mb-4">LINE Bot Setup</h3>
               
