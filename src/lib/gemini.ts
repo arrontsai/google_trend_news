@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { TrendItem } from './trends';
 import { StockNewsItem } from './us-stocks';
+import { generateWithFallback } from './ai-core';
 
 export async function summarizeWithGemini(trends: TrendItem[]): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -58,20 +59,14 @@ export async function summarizeWithGemini(trends: TrendItem[]): Promise<string> 
   }
 }
 
+
 export async function summarizeUSStocksWithGemini(news: StockNewsItem[], marketContext?: string): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('Missing GEMINI_API_KEY');
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
-
   if (news.length === 0) return '目前沒有最新的美股新聞。';
 
   const newsList = news.map((n, i) => `${i + 1}. [${n.source}] ${n.headline}: ${n.summary}`).join('\n\n');
   const todayStr = new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
   
+  const systemPrompt = '你是一位專業的華爾街金融分析師。請用專業、簡潔且術語符合台灣習慣的口吻撰寫。';
   const prompt = `
     今天是 ${todayStr}，你是專業的華爾街金融分析師。請根據以下美股即時新聞與市場背景，撰寫一份對齊台股格式的「美股即時快訊」。
     
@@ -104,12 +99,5 @@ export async function summarizeUSStocksWithGemini(news: StockNewsItem[], marketC
     標的關鍵字：(格式：公司名(代碼): 摘要 | 用 | 分隔)
   `;
 
-  try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
-  } catch (error) {
-    console.error('Error generating US stock summary with Gemini:', error);
-    throw error;
-  }
+  return await generateWithFallback(prompt, systemPrompt);
 }

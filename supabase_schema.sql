@@ -1,25 +1,36 @@
--- Create a table to store the daily summaries
-create table if not exists daily_trends_summary (
+-- ==========================================
+-- ⚠️ 注意：此腳本會刪除並重新建立所有表格（資料會清除）
+-- 這樣可以確保您的 Schema 與最新代碼完全同步，解決 Cache 與欄位缺失問題。
+-- ==========================================
+
+-- 1. 刪除現有資料表（按依賴順序）
+drop table if exists stock_tracking;
+drop table if exists daily_trends_summary;
+drop table if exists line_users;
+
+-- 2. 建立每日摘要資料表 (包含最新類別欄位)
+create table daily_trends_summary (
   id bigint primary key generated always as identity,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  date date not null, -- Removed unique to allow different categories on same date
-  category text default 'tw_trends', -- 'tw_trends' or 'us_stocks'
+  date date not null,
+  category text default 'tw_trends', -- 'tw_trends' 或 'us_stocks'
   summary_content text,
   raw_data jsonb,
   line_sent boolean default false,
-  unique (date, category) -- Combined unique constraint
+  -- 定義唯一約束：同一日期、同一類別只能有一份摘要
+  unique (date, category)
 );
 
--- Create a table to store LINE users
-create table if not exists line_users (
+-- 3. 建立 LINE 用戶追蹤表
+create table line_users (
   user_id text primary key,
   display_name text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   last_active timestamp with time zone default timezone('utc'::text, now())
 );
 
--- Create a table to store individual stock tracking data
-create table if not exists stock_tracking (
+-- 4. 建立標的價格追蹤表
+create table stock_tracking (
   id bigint primary key generated always as identity,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   summary_id bigint references daily_trends_summary(id) on delete cascade,
@@ -30,50 +41,20 @@ create table if not exists stock_tracking (
   price numeric,
   change_percent numeric,
   currency text,
-  raw_metadata jsonb -- Store full Yahoo Finance object for future analysis
+  raw_metadata jsonb
 );
 
--- Enable Row Level Security (RLS)
+-- 5. 開啟 RLS 安全設定
 alter table daily_trends_summary enable row level security;
 alter table line_users enable row level security;
 alter table stock_tracking enable row level security;
 
--- Policies for daily_trends_summary
-drop policy if exists "Enable read access for all users" on daily_trends_summary;
-create policy "Enable read access for all users"
-on "public"."daily_trends_summary"
-as PERMISSIVE
-for SELECT
-to public
-using (true);
+-- 6. 設定 RLS Policies (開放讀取給網頁，全開給後端)
+create policy "Enable read access for all users" on daily_trends_summary for select using (true);
+create policy "Enable read access for all users" on stock_tracking for select using (true);
+create policy "Enable all access for backend service" on daily_trends_summary for all using (true);
+create policy "Enable all access for backend service" on line_users for all using (true);
+create policy "Enable all access for backend service" on stock_tracking for all using (true);
 
-drop policy if exists "Enable all access for backend service" on daily_trends_summary;
-create policy "Enable all access for backend service"
-on "public"."daily_trends_summary"
-for all
-using (true)
-with check (true);
-
--- Policies for line_users
-drop policy if exists "Enable all access for backend service" on line_users;
-create policy "Enable all access for backend service"
-on "public"."line_users"
-for all
-using (true)
-with check (true);
-
--- Policies for stock_tracking
-drop policy if exists "Enable read access for all users" on stock_tracking;
-create policy "Enable read access for all users"
-on "public"."stock_tracking"
-as PERMISSIVE
-for SELECT
-to public
-using (true);
-
-drop policy if exists "Enable all access for backend service" on stock_tracking;
-create policy "Enable all access for backend service"
-on "public"."stock_tracking"
-for all
-using (true)
-with check (true);
+-- 7. 強制刷新 Schema 快取
+notify pgrst, 'reload schema';
