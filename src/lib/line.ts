@@ -11,11 +11,25 @@ const client = new messagingApi.MessagingApiClient({
   channelAccessToken: channelAccessToken,
 });
 
-export async function pushMessage(userId: string, text: string) {
+export async function pushMessage(userId: string, text: string, quickReplies?: string[]) {
   try {
+    const message: any = { type: 'text', text: text };
+    if (quickReplies && quickReplies.length > 0) {
+      message.quickReply = {
+        items: quickReplies.map(label => ({
+          type: 'action',
+          action: {
+            type: 'message',
+            label: label,
+            text: label
+          }
+        }))
+      };
+    }
+
     await client.pushMessage({
       to: userId,
-      messages: [{ type: 'text', text: text }],
+      messages: [message],
     });
   } catch (error) {
     console.error('Error sending LINE message:', error);
@@ -23,14 +37,28 @@ export async function pushMessage(userId: string, text: string) {
   }
 }
 
-export async function replyMessage(replyToken: string, text: string) {
-    try {
-        await client.replyMessage({
-            replyToken: replyToken,
-            messages: [{ type: 'text', text: text }],
-        });
-    } catch (error) {
-        console.error('Error replying LINE message:', error);
-        throw error;
+export async function replyMessage(replyToken: string, text: string, quickReplies?: string[]) {
+  try {
+    const message: any = { type: 'text', text: text };
+    if (quickReplies && quickReplies.length > 0) {
+      message.quickReply = {
+        items: quickReplies.map(label => ({
+          type: 'action',
+          action: {
+            type: 'message',
+            label: label,
+            text: label
+          }
+        }))
+      };
     }
+
+    await client.replyMessage({
+      replyToken: replyToken,
+      messages: [message],
+    });
+  } catch (error) {
+    console.error('Error replying LINE message:', error);
+    throw error;
+  }
 }

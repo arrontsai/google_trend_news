@@ -3,6 +3,8 @@ import { summarizeTrends } from './ai-service';
 import { supabase } from './supabase';
 import { pushMessage } from './line';
 import { getPriceTrend, formatPriceTrend } from './finance';
+import { fetchUSStockNews, fetchMarketContext } from './us-stocks';
+import { summarizeUSStocksWithGemini } from './gemini';
 
 export async function generateAndSendDigest(targetUserId?: string) {
   try {
@@ -124,6 +126,75 @@ export async function generateAndSendDigest(targetUserId?: string) {
     return { success: true, summary: summary };
   } catch (error: any) {
     console.error('Digest generation failed:', error);
+    throw error;
+  }
+}
+
+export async function generateAndSendUSStockDigest(targetUserId?: string) {
+  try {
+    console.log('Generating US Stock digest...');
+
+    // 1. Fetch US Stock News & Context
+    console.log('Fetching US stock news and market context...');
+    const news = await fetchUSStockNews();
+    const context = await fetchMarketContext();
+    
+    console.log(`Fetched ${news.length} news items. Starting AI summarization with context...`);
+
+    // 2. Summarize with Gemini (Pass context if needed, currently summarizeUSStocksWithGemini takes news)
+    // We update summarizeUSStocksWithGemini later or wrap it
+    const summary = await summarizeUSStocksWithGemini(news, context);
+    console.log('AI US Stock Summary generated successfully.');
+
+    // 3. Save to Supabase
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('daily_trends_summary')
+      .upsert(
+        { 
+          date: today, 
+          category: 'us_stocks',
+          summary_content: summary, 
+          raw_data: { news, context },
+          line_sent: false 
+        },
+        { onConflict: 'date, category' }
+      )
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Supabase error (US Stocks):', error);
+      throw error;
+    }
+
+    // 4. Send to LINE
+    let userIds: string[] = [];
+    if (targetUserId) {
+      userIds = [targetUserId];
+    } else {
+      const { data: users, error: userError } = await supabase
+        .from('line_users')
+        .select('user_id');
+      
+      if (!userError && users) {
+        userIds = users.map(u => u.user_id);
+      }
+    }
+
+    if (userIds.length > 0) {
+        console.log(`Broadcasting US Stock summary to ${userIds.length} users...`);
+        await Promise.all(userIds.map(id => pushMessage(id, summary).catch(e => console.error(`Error sending US summary to ${id}:`, e))));
+        
+        await supabase
+            .from('daily_trends_summary')
+            .update({ line_sent: true })
+            .eq('id', data.id);
+    }
+
+    return { success: true, summary: summary };
+  } catch (error: any) {
+    console.error('US Stock Digest generation failed:', error);
     throw error;
   }
 }
