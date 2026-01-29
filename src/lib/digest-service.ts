@@ -51,11 +51,12 @@ export async function generateAndSendDigest(targetUserId?: string) {
       .upsert(
         { 
           date: today, 
+          category: 'tw_trends',
           summary_content: summary, 
           raw_data: trends,
           line_sent: false 
         },
-        { onConflict: 'date' }
+        { onConflict: 'date, category' }
       )
       .select()
       .single();
