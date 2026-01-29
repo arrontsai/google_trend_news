@@ -1,30 +1,40 @@
 import OpenAI from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 
-// 模型定義
+// 模型類型定義
 export type AIModel = 
-  | 'gpt-4o' 
-  | 'gemini-1.5-pro' 
-  | 'gpt-4o-mini' 
+  | 'claude-3-5-sonnet'
+  | 'gpt-4o'
+  | 'grok-beta'
+  | 'gemini-1.5-pro'
+  | 'claude-3-haiku'
+  | 'gpt-4o-mini'
   | 'gemini-1.5-flash';
 
-// 配置介面
+// 供應商配置
 interface ModelConfig {
-  provider: 'openai' | 'google';
+  provider: 'openai' | 'google' | 'anthropic' | 'xai';
   modelId: string;
 }
 
 const MODEL_CONFIGS: Record<AIModel, ModelConfig> = {
+  'claude-3-5-sonnet': { provider: 'anthropic', modelId: 'claude-3-5-sonnet-20241022' },
   'gpt-4o': { provider: 'openai', modelId: 'gpt-4o' },
+  'grok-beta': { provider: 'xai', modelId: 'grok-beta' },
   'gemini-1.5-pro': { provider: 'google', modelId: 'gemini-1.5-pro' },
+  'claude-3-haiku': { provider: 'anthropic', modelId: 'claude-3-haiku-20240307' },
   'gpt-4o-mini': { provider: 'openai', modelId: 'gpt-4o-mini' },
   'gemini-1.5-flash': { provider: 'google', modelId: 'gemini-1.5-flash' },
 };
 
-// 優先順序
+// 最終退讓順序
 const MODEL_FALLBACK_ORDER: AIModel[] = [
+  'claude-3-5-sonnet',
   'gpt-4o',
+  'grok-beta',
   'gemini-1.5-pro',
+  'claude-3-haiku',
   'gpt-4o-mini',
   'gemini-1.5-flash'
 ];
@@ -34,38 +44,46 @@ export async function generateWithFallback(prompt: string, systemPrompt: string)
 
   for (const modelKey of MODEL_FALLBACK_ORDER) {
     const config = MODEL_CONFIGS[modelKey];
-    console.log(`[AI-Service] Attempting generation with ${modelKey}...`);
+    console.log(`[AI-Core] Attempting ${modelKey} (${config.provider})...`);
 
     try {
-      if (config.provider === 'openai') {
-        return await callOpenAI(modelKey, prompt, systemPrompt);
-      } else {
-        return await callGemini(modelKey, prompt);
+      switch (config.provider) {
+        case 'openai':
+          return await callOpenAI(modelKey, prompt, systemPrompt);
+        case 'google':
+          return await callGemini(modelKey, prompt);
+        case 'anthropic':
+          return await callClaude(modelKey, prompt, systemPrompt);
+        case 'xai':
+          return await callGrok(modelKey, prompt, systemPrompt);
+        default:
+          throw new Error(`Unsupported provider: ${config.provider}`);
       }
     } catch (error: any) {
       lastError = error;
       const errorMessage = error.message || String(error);
       
-      // 識別可退讓的錯誤 (Quota 429, Server Error 500, Key Missing等)
+      // 識別可退讓的錯誤 (Quota 429, Server Error 50x, Key Missing等)
       if (
         errorMessage.includes('429') || 
         errorMessage.includes('quota') || 
         errorMessage.includes('limit') ||
         errorMessage.includes('500') ||
+        errorMessage.includes('502') ||
         errorMessage.includes('503') ||
-        errorMessage.includes('Missing')
+        errorMessage.includes('Missing') ||
+        errorMessage.includes('authentication')
       ) {
-        console.warn(`[AI-Service] ${modelKey} failed (Retryable): ${errorMessage}. Trying next model...`);
+        console.warn(`[AI-Core] ${modelKey} failed (Retryable): ${errorMessage}.`);
         continue;
       } else {
-        // 其他非預期錯誤直接拋出
-        console.error(`[AI-Service] ${modelKey} failed (NON-Retryable):`, error);
+        console.error(`[AI-Core] ${modelKey} failed (NON-Retryable):`, error);
         throw error;
       }
     }
   }
 
-  throw new Error(`所有 AI 模型皆嘗試失敗。最後一個錯誤: ${lastError?.message || '未知'}`);
+  throw new Error(`[AI-Core] 所有平台模型皆已嘗試但失敗。最後錯誤: ${lastError?.message || '未知'}`);
 }
 
 async function callOpenAI(model: AIModel, prompt: string, systemPrompt: string): Promise<string> {
@@ -90,10 +108,53 @@ async function callGemini(model: AIModel, prompt: string): Promise<string> {
   if (!apiKey) throw new Error('Missing GEMINI_API_KEY');
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  // 注意：Gemini 1.5 系列的模型 ID 通常與 config 中的 modelId 一致
   const genModel = genAI.getGenerativeModel({ model: MODEL_CONFIGS[model].modelId });
   
   const result = await genModel.generateContent(prompt);
   const response = await result.response;
   return response.text();
+}
+
+async function callClaude(model: AIModel, prompt: string, systemPrompt: string): Promise<string> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error('Missing ANTHROPIC_API_KEY');
+
+  const anthropic = new Anthropic({ apiKey });
+  const response = await anthropic.messages.create({
+    model: MODEL_CONFIGS[model].modelId,
+    max_tokens: 4096,
+    system: systemPrompt,
+    messages: [
+      { role: 'user', content: prompt }
+    ],
+    temperature: 0.7,
+  });
+
+  const content = response.content[0];
+  if (content.type === 'text') {
+    return content.text;
+  }
+  return '';
+}
+
+async function callGrok(model: AIModel, prompt: string, systemPrompt: string): Promise<string> {
+  const apiKey = process.env.GROK_API_KEY;
+  if (!apiKey) throw new Error('Missing GROK_API_KEY');
+
+  // Grok API 使用 OpenAI 相容格式
+  const xai = new OpenAI({
+    apiKey: apiKey,
+    baseURL: 'https://api.x.ai/v1',
+  });
+
+  const response = await xai.chat.completions.create({
+    model: MODEL_CONFIGS[model].modelId,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: prompt }
+    ],
+    temperature: 0.7,
+  });
+
+  return response.choices[0].message.content || '';
 }
