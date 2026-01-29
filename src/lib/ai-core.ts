@@ -63,18 +63,21 @@ export async function generateWithFallback(prompt: string, systemPrompt: string)
       lastError = error;
       const errorMessage = error.message || String(error);
       
-      // 識別可退讓的錯誤 (Quota 429, Server Error 50x, Key Missing等)
+      // 識別可退讓的錯誤 (Quota 429, Server Error 50x, Key Missing, 餘額不足 400 等)
       if (
         errorMessage.includes('429') || 
         errorMessage.includes('quota') || 
         errorMessage.includes('limit') ||
+        errorMessage.includes('400') || // 新增：捕捉 Anthropic 等 400 餘額/權限錯誤
+        errorMessage.includes('balance') || // 新增：直接識別餘額字眼
+        errorMessage.includes('credit') || // 新增：識別點數不足
         errorMessage.includes('500') ||
         errorMessage.includes('502') ||
         errorMessage.includes('503') ||
         errorMessage.includes('Missing') ||
         errorMessage.includes('authentication')
       ) {
-        console.warn(`[AI-Core] ${modelKey} failed (Retryable): ${errorMessage}.`);
+        console.warn(`[AI-Core] ${modelKey} failed (Retryable): ${errorMessage}. Trying next model...`);
         continue;
       } else {
         console.error(`[AI-Core] ${modelKey} failed (NON-Retryable):`, error);
