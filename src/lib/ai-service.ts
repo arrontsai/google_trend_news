@@ -5,7 +5,7 @@ export async function summarizeTrends(trends: TrendItem[]): Promise<string> {
   if (trends.length === 0) return 'No trends found today.';
 
   const todayStr = new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
-  const trendList = trends.slice(0, 30).map((t, i) => `${i + 1}. [來源: ${t.source}] ${t.title}`).join('\n');
+  const trendList = trends.slice(0, 15).map((t, i) => `${i + 1}. [來源: ${t.source}] ${t.title}`).join('\n');
 
   const systemPrompt = '你是一位專業台股晨報分析師。請用專業、簡潔且具洞察力的口吻撰寫。';
   const prompt = `
