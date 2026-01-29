@@ -31,12 +31,12 @@ const MODEL_CONFIGS: Record<AIModel, ModelConfig> = {
 // 最終退讓順序
 const MODEL_FALLBACK_ORDER: AIModel[] = [
   'claude-3-5-sonnet',
+  'gemini-1.5-flash', // 用戶反饋表現優異，提升至優先順位
   'gpt-4o',
   'grok-beta',
   'gemini-1.5-pro',
   'claude-3-haiku',
-  'gpt-4o-mini',
-  'gemini-1.5-flash'
+  'gpt-4o-mini'
 ];
 
 export async function generateWithFallback(prompt: string, systemPrompt: string): Promise<string> {
