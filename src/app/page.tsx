@@ -5,165 +5,149 @@ import TriggerButton from '@/components/TriggerButton';
 // Force dynamic rendering to ensure fresh data
 export const dynamic = 'force-dynamic';
 
-async function getSummaries() {
+async function getLatestSummaries() {
+  const today = new Date().toISOString().split('T')[0];
+  
   const { data, error } = await supabase
     .from('daily_trends_summary')
     .select('*')
-    .order('date', { ascending: false })
-    .limit(7);
+    .eq('date', today)
+    .order('created_at', { ascending: false });
 
   if (error) {
-    console.error('Error fetching summaries:', {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code
-    });
-    return [];
+    console.error('Error fetching summaries:', error);
+    return { tw: null, us: null };
   }
-  return data || [];
+
+  const twTrend = data?.find(item => item.category === 'tw_trends') || null;
+  const usStock = data?.find(item => item.category === 'us_stocks') || null;
+
+  return { tw: twTrend, us: usStock };
 }
 
 export default async function Home() {
-  const summaries = await getSummaries();
+  const { tw, us } = await getLatestSummaries();
+  const todayStr = new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' });
 
   return (
     <div className="min-h-screen bg-zinc-50 font-sans text-zinc-900 dark:bg-black dark:text-zinc-100">
       {/* Header */}
       <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-black/80">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold">G</div>
-            <h1 className="text-xl font-bold tracking-tight">Google Trends TW</h1>
+            <h1 className="text-xl font-bold tracking-tight">全球投資情報助手</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
-              Live Monitoring
-            </span>
+          <div className="flex items-center gap-4 text-sm font-medium text-zinc-500">
+            {todayStr}
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-12">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-3">
-          {/* Main Content: Summaries */}
-          <div className="lg:col-span-2 space-y-10">
-            <section>
-              <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500 mb-6">Latest Summaries</h2>
-              <div className="space-y-8">
-                {summaries.length === 0 ? (
-                  <div className="rounded-2xl border-2 border-dashed border-zinc-200 p-12 text-center dark:border-zinc-800">
-                    <p className="text-zinc-500">尚無摘要數據，請先執行 Cron Job API。</p>
+      <main className="mx-auto max-w-6xl px-6 py-12">
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
+          {/* Taiwan Stocks Section */}
+          <section className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-violet-600 uppercase tracking-tight">🇹🇼 台股即時晨報</h2>
+              <span className="text-xs font-bold text-zinc-400">CATEGORY: TW_TRENDS</span>
+            </div>
+            
+            {tw ? (
+              <article className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm transition-all hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/50">
+                <div className="prose prose-zinc dark:prose-invert max-w-none">
+                  <pre className="whitespace-pre-wrap font-sans text-base leading-relaxed text-zinc-800 dark:text-zinc-200">
+                    {tw.summary_content}
+                  </pre>
+                </div>
+                {tw.line_sent && (
+                  <div className="mt-6 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                    <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                      SENT TO LINE
+                    </span>
                   </div>
-                ) : (
-                  summaries.map((item) => (
-                    <article key={item.id} className="group relative rounded-2xl border border-zinc-200 bg-white p-8 transition-all hover:shadow-xl dark:border-zinc-800 dark:bg-zinc-900/50">
-                      <time className="mb-2 block text-sm font-medium text-indigo-600 dark:text-indigo-400">
-                        {new Date(item.date).toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}
-                      </time>
-                      <div className="prose prose-zinc dark:prose-invert max-w-none">
-                        <pre className="whitespace-pre-wrap font-sans text-lg leading-relaxed text-zinc-800 dark:text-zinc-200">
-                          {item.summary_content}
-                        </pre>
-                      </div>
-                      <div className="mt-6 flex items-center gap-4 border-t border-zinc-100 pt-6 dark:border-zinc-800">
-                        <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
-                          Source: Multi-Source (PTT / News / Trends / X)
-                        </span>
-                        {item.line_sent && (
-                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                            Sent to LINE
-                          </span>
-                        )}
-                      </div>
-                    </article>
-                  ))
                 )}
+              </article>
+            ) : (
+              <div className="rounded-2xl border-2 border-dashed border-zinc-200 p-12 text-center dark:border-zinc-800">
+                <p className="text-zinc-500 text-sm">今日尚無台股摘要。</p>
               </div>
-            </section>
-          </div>
+            )}
+            
+            <div className="rounded-2xl bg-zinc-100 p-6 dark:bg-zinc-900/80">
+              <TriggerButton type="tw_trends" label="🚀 立即生成台股報表" />
+            </div>
+          </section>
 
-          {/* Sidebar: Setup Guide */}
-          <div className="space-y-8">
-            <section className="rounded-2xl border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900/50">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-500 mb-4 text-center">手動控制台</h3>
-              <TriggerButton />
-              <p className="mt-4 text-[10px] text-zinc-400 text-center leading-relaxed">
-                點擊按鈕將即時抓取 PTT/Trends 最新資料並更新網頁與 LINE。
-              </p>
-            </section>
-
-            <section className="rounded-2xl bg-indigo-600 p-8 text-white">
-              <h3 className="text-xl font-bold mb-4">LINE Bot Setup</h3>
-              
-              {/* QR Code Section */}
-              <div className="mb-6 space-y-4 text-center">
-                <div className="inline-block rounded-xl bg-white p-3 shadow-inner">
-                  <Image 
-                    src="/images/line-qr-code.png" 
-                    alt="LINE QR Code" 
-                    width={150} 
-                    height={150}
-                    className="rounded-lg"
-                  />
+          {/* US Stocks Section */}
+          <section className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-black bg-clip-text text-transparent bg-gradient-to-r from-emerald-600 to-teal-600 uppercase tracking-tight">🇺🇸 美股即時快訊</h2>
+              <span className="text-xs font-bold text-zinc-400">CATEGORY: US_STOCKS</span>
+            </div>
+            
+            {us ? (
+              <article className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm transition-all hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/50">
+                <div className="prose prose-zinc dark:prose-invert max-w-none">
+                  <pre className="whitespace-pre-wrap font-sans text-base leading-relaxed text-zinc-800 dark:text-zinc-200">
+                    {us.summary_content}
+                  </pre>
                 </div>
-                <a 
-                  href="https://line.me/R/ti/p/@605cwpjk" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full rounded-full bg-[#06C755] py-2 text-sm font-bold text-white hover:bg-[#05b34c] transition-colors shadow-md"
-                >
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M24 10.304c0-5.232-5.373-9.488-12-9.488S0 5.072 0 10.304c0 4.688 4.256 8.6 10 9.328.392.08.928.256 1.064.584.152.344.096.888.048 1.24-.04.288-.2.96.816.528 1.016-.44 5.488-3.328 7.488-5.712 2-2.392 4.584-1.12 4.584-5.968zM7.056 13.912c-.224 0-.408-.184-.408-.408V7.128c0-.224.184-.408.408-.408s.408.184.408.408v6.376c0 .224-.184.408-.408.408zm3.28 0c-.224 0-.408-.184-.408-.408V7.128c0-.224.184-.408.408-.408s.408.184.408.408v2.96h2.24V7.128c0-.224.184-.408.408-.408s.408.184.408.408v6.376c0 .224-.184.408-.408.408s-.408-.184-.408-.408V10.92h-2.24v2.584c0 .224-.184.408-.408.408zm6.544 0h-2.208c-.224 0-.408-.184-.408-.408V7.128c0-.224.184-.408.408-.408s.408.184.408.408v5.56h1.8c.224 0 .408.184.408.408s-.184.408-.408.408zm3.28-2.656c-.224 0-.408-.184-.408-.408V10.12h-1.688V9.176h1.688V8.224h-1.688V7.272c0-.224-.184-.408-.408-.408s-.408.184-.408.408v6.376c0 .224.184.408.408.408h2.096c.224 0 .408-.184.408-.408v-.952h.008z"/>
-                  </svg>
-                  直接加入 LINE 好友
-                </a>
+                {us.line_sent && (
+                  <div className="mt-6 border-t border-zinc-100 pt-4 dark:border-zinc-800">
+                    <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
+                      SENT TO LINE
+                    </span>
+                  </div>
+                )}
+              </article>
+            ) : (
+              <div className="rounded-2xl border-2 border-dashed border-zinc-200 p-12 text-center dark:border-zinc-800">
+                <p className="text-zinc-500 text-sm">今日尚無美股摘要。</p>
               </div>
-
-              <p className="mb-6 text-indigo-100 text-sm leading-relaxed">
-                台股晨報機器人已全面升級！現在只需完成以下簡單動作即可自動訂閱：
-              </p>
-              <ol className="space-y-4 text-sm font-medium">
-                <li className="flex gap-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs">1</span>
-                  <span>掃描上方 QR Code 加入好友（或將 Bot 拉入群組）。</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs">2</span>
-                  <span>**系統會自動註冊**，每天 08:00 AM 準時發送簡報。</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs">3</span>
-                  <span>對 Bot 傳送「**新消息**」可即時生成盤中/盤後分析。</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs">4</span>
-                  <span>封鎖機器人或退出群組將自動停止訂閱。</span>
-                </li>
-              </ol>
-            </section>
-
-            <section className="rounded-2xl border border-zinc-200 bg-white p-8 dark:border-zinc-800 dark:bg-zinc-900/50">
-              <h3 className="font-bold mb-4">API Endpoints</h3>
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs font-bold text-zinc-400 uppercase mb-1">Trigger Cron Job</p>
-                  <code className="block rounded bg-zinc-100 p-2 text-xs dark:bg-zinc-800 overflow-x-auto">
-                    GET /api/cron/daily-digest
-                  </code>
-                </div>
-                <p className="text-xs text-zinc-500 italic">
-                  * Remember to include the Authorization header.
-                </p>
-              </div>
-            </section>
-          </div>
+            )}
+            
+            <div className="rounded-2xl bg-zinc-100 p-6 dark:bg-zinc-900/80">
+              <TriggerButton type="us_stocks" label="🗽 立即生成美股報表" />
+            </div>
+          </section>
         </div>
+
+        {/* LINE Guide moved to bottom or simplified */}
+        <section className="mt-20 rounded-3xl bg-indigo-600 p-10 text-white overflow-hidden relative">
+          <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
+            <div className="shrink-0 rounded-2xl bg-white p-3 shadow-2xl rotate-3">
+              <Image 
+                src="/images/line-qr-code.png" 
+                alt="LINE QR Code" 
+                width={140} 
+                height={140}
+                className="rounded-lg"
+              />
+            </div>
+            <div className="space-y-4">
+              <h3 className="text-3xl font-black">訂閱 LINE 即時推播</h3>
+              <p className="text-indigo-100 max-w-lg leading-relaxed">
+                每日 08:00 AM 自動發送，您也可以隨時對 Bot 傳送「**台股**」或「**美股**」獲取最新分析。
+              </p>
+              <a 
+                href="https://line.me/R/ti/p/@605cwpjk" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-[#06C755] px-8 py-3 text-sm font-bold text-white hover:bg-[#05b34c] transition-all shadow-lg hover:scale-105"
+              >
+                直接加入好友
+              </a>
+            </div>
+          </div>
+          {/* Subtle background decoration */}
+          <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-64 h-64 bg-indigo-500 rounded-full blur-3xl opacity-50"></div>
+        </section>
       </main>
 
-      <footer className="mx-auto max-w-5xl px-6 py-12 border-t border-zinc-200 dark:border-zinc-800">
+      <footer className="mx-auto max-w-6xl px-6 py-12 border-t border-zinc-200 dark:border-zinc-800">
         <p className="text-center text-sm text-zinc-500">
-          Google Trends TW Digest &copy; 2026. Built with Next.js, Supabase, and OpenAI/Gemini.
+          Global Investment Assistant &copy; 2026. Built with Next.js & Gemini.
         </p>
       </footer>
     </div>

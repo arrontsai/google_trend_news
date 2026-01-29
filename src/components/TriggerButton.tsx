@@ -2,7 +2,12 @@
 
 import { useState } from 'react';
 
-export default function TriggerButton() {
+interface TriggerButtonProps {
+  type: 'tw_trends' | 'us_stocks';
+  label: string;
+}
+
+export default function TriggerButton({ type, label }: TriggerButtonProps) {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -10,14 +15,13 @@ export default function TriggerButton() {
     if (loading) return;
     
     setLoading(true);
-    setStatus('正在生成最新簡報...');
+    setStatus(`正在生成${type === 'tw_trends' ? '台股' : '美股'}最新簡報...`);
     
     try {
-      // Note: In a real app, the secret should ideally be handled via a secure session or 
-      // the user could input it. Here we use the one provided by the user for convenience.
       const secret = 'custom_2026_01_28'; 
+      const endpoint = type === 'tw_trends' ? '/api/cron/daily-digest' : '/api/cron/us-stock';
       
-      const res = await fetch('/api/cron/daily-digest', {
+      const res = await fetch(endpoint, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${secret}`
@@ -26,7 +30,6 @@ export default function TriggerButton() {
 
       if (res.ok) {
         setStatus('✅ 生成成功！請刷新網頁或查看 LINE。');
-        // Optional: refresh the page after a short delay
         setTimeout(() => window.location.reload(), 2000);
       } else {
         const errData = await res.json();
@@ -48,7 +51,9 @@ export default function TriggerButton() {
         className={`w-full rounded-xl py-4 font-bold text-white transition-all shadow-lg active:scale-95 ${
           loading 
             ? 'bg-zinc-400 cursor-not-allowed' 
-            : 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700'
+            : type === 'tw_trends'
+              ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700'
+              : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700'
         }`}
       >
         {loading ? (
@@ -60,7 +65,7 @@ export default function TriggerButton() {
             生成中...
           </div>
         ) : (
-          '🚀 立即生成最新簡報'
+          label
         )}
       </button>
       
