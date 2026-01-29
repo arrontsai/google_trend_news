@@ -4,6 +4,8 @@ import Anthropic from '@anthropic-ai/sdk';
 
 // 模型類型定義
 export type AIModel = 
+  | 'gemini-2.0-flash'
+  | 'gemini-2.0-flash-lite'
   | 'claude-3-5-sonnet'
   | 'gpt-4o'
   | 'grok-beta'
@@ -19,6 +21,8 @@ interface ModelConfig {
 }
 
 const MODEL_CONFIGS: Record<AIModel, ModelConfig> = {
+  'gemini-2.0-flash': { provider: 'google', modelId: 'gemini-2.0-flash-exp' },
+  'gemini-2.0-flash-lite': { provider: 'google', modelId: 'gemini-2.0-flash-lite-preview-02-05' },
   'claude-3-5-sonnet': { provider: 'anthropic', modelId: 'claude-3-5-sonnet-20241022' },
   'gpt-4o': { provider: 'openai', modelId: 'gpt-4o' },
   'grok-beta': { provider: 'xai', modelId: 'grok-beta' },
@@ -28,15 +32,17 @@ const MODEL_CONFIGS: Record<AIModel, ModelConfig> = {
   'gemini-1.5-flash': { provider: 'google', modelId: 'gemini-1.5-flash-latest' },
 };
 
-// 最終退讓順序
+// 最終退讓順序 (優先採用慷慨且高效的模型)
 const MODEL_FALLBACK_ORDER: AIModel[] = [
-  'claude-3-5-sonnet',
-  'gemini-1.5-flash', // 用戶反饋表現優異，提升至優先順位
-  'gpt-4o',
-  'grok-beta',
-  'gemini-1.5-pro',
-  'claude-3-haiku',
-  'gpt-4o-mini'
+  'gemini-2.0-flash-lite', // 額度最高 (1000 RPD)，首選
+  'gemini-2.0-flash',      // 表現優異且額度穩定
+  'claude-3-5-sonnet',     // 高品質推理
+  'gpt-4o',                // 旗艦備援
+  'grok-beta',             // 即時性備援
+  'gemini-1.5-pro',        // 高階備援
+  'claude-3-haiku',        // 快速型備援
+  'gpt-4o-mini',           // 成本型備援
+  'gemini-1.5-flash'       // 最終保底
 ];
 
 export async function generateWithFallback(prompt: string, systemPrompt: string): Promise<string> {
