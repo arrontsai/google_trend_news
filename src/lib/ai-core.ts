@@ -22,10 +22,10 @@ const MODEL_CONFIGS: Record<AIModel, ModelConfig> = {
   'claude-3-5-sonnet': { provider: 'anthropic', modelId: 'claude-3-5-sonnet-20241022' },
   'gpt-4o': { provider: 'openai', modelId: 'gpt-4o' },
   'grok-beta': { provider: 'xai', modelId: 'grok-beta' },
-  'gemini-1.5-pro': { provider: 'google', modelId: 'gemini-1.5-pro' },
+  'gemini-1.5-pro': { provider: 'google', modelId: 'gemini-1.5-pro-latest' },
   'claude-3-haiku': { provider: 'anthropic', modelId: 'claude-3-haiku-20240307' },
   'gpt-4o-mini': { provider: 'openai', modelId: 'gpt-4o-mini' },
-  'gemini-1.5-flash': { provider: 'google', modelId: 'gemini-1.5-flash' },
+  'gemini-1.5-flash': { provider: 'google', modelId: 'gemini-1.5-flash-latest' },
 };
 
 // 最終退讓順序
@@ -61,20 +61,23 @@ export async function generateWithFallback(prompt: string, systemPrompt: string)
       }
     } catch (error: any) {
       lastError = error;
-      const errorMessage = error.message || String(error);
+      const errorMessage = (error.message || String(error)).toLowerCase();
       
-      // 識別可退讓的錯誤 (Quota 429, Server Error 50x, Key Missing, 餘額不足 400 等)
+      // 識別可退讓的錯誤 (Quota 429, Server Error 50x, Key Missing, 餘額不足 400, 模型未找到 404 等)
       if (
         errorMessage.includes('429') || 
         errorMessage.includes('quota') || 
         errorMessage.includes('limit') ||
-        errorMessage.includes('400') || // 新增：捕捉 Anthropic 等 400 餘額/權限錯誤
-        errorMessage.includes('balance') || // 新增：直接識別餘額字眼
-        errorMessage.includes('credit') || // 新增：識別點數不足
+        errorMessage.includes('400') ||
+        errorMessage.includes('404') || // 新增：捕捉 404 Not Found
+        errorMessage.includes('not found') || // 新增：捕捉模型未找到
+        errorMessage.includes('not supported') || // 新增：捕捉不支援的方法
+        errorMessage.includes('balance') ||
+        errorMessage.includes('credit') ||
         errorMessage.includes('500') ||
         errorMessage.includes('502') ||
         errorMessage.includes('503') ||
-        errorMessage.includes('Missing') ||
+        errorMessage.includes('missing') ||
         errorMessage.includes('authentication')
       ) {
         console.warn(`[AI-Core] ${modelKey} failed (Retryable): ${errorMessage}. Trying next model...`);
