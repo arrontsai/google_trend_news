@@ -42,12 +42,32 @@ export async function POST(req: NextRequest) {
         const replyToken = event.replyToken;
         const messageText = (event.message.text || '').trim();
 
-        if (messageText === '新消息' || messageText === '新訊息' || messageText === '新新聞') {
-          await replyMessage(replyToken, '正在為您生成最新台股晨報，請稍候... 📈（處理中，約需 10-15 秒）');
+        if (messageText === '新消息' || messageText === '新訊息' || messageText === '台股' || messageText === 'TW') {
+          await replyMessage(replyToken, '正在抓取最新台股晨報與趨勢，請稍候... 📊');
           try {
             await generateAndSendDigest(targetId);
           } catch (err) {
             console.error('Manual digest trigger failed:', err);
+          }
+        } else if (messageText === '美股' || messageText === 'US') {
+          await replyMessage(replyToken, '正在生成最新華爾街美股快訊，請稍候... 🇺🇸');
+          try {
+            // Fetch US stocks summary from DB
+            const { data } = await supabase
+              .from('daily_trends_summary')
+              .select('summary_content')
+              .eq('category', 'us_stocks')
+              .order('date', { ascending: false })
+              .limit(1)
+              .single();
+            
+            if (data?.summary_content) {
+              await replyMessage(replyToken, data.summary_content);
+            } else {
+              await replyMessage(replyToken, '目前尚無今日的美股快訊。請待美股收盤後再次嘗試！');
+            }
+          } catch (err) {
+            console.error('Manual US stock trigger failed:', err);
           }
         } else if (messageText === '股票價格' || messageText === '查詢價格') {
           try {
@@ -56,7 +76,7 @@ export async function POST(req: NextRequest) {
             console.error('Price query failed:', err);
           }
         } else if (replyToken) {
-          await replyMessage(replyToken, `即時熱搜 LINE Bot 服務中！\n此對話（${sourceType}）已自動加入訂閱清單。\n\n傳送「新消息」回報最新簡報。\n傳送「股票價格」查詢分析中標的的最近走勢。`);
+          await replyMessage(replyToken, `即時投資情報助手服務中！\n此對話（${sourceType}）已自動加入訂閱清單。\n\n傳送以下指令獲取資訊：\n👉 「台股」：最新台股晨報與趨勢\n👉 「美股」：最新華爾街即時快訊\n👉 「股票價格」：查看簡報標的最近走勢`);
         }
       } else if (event.type === 'follow' || event.type === 'join') {
         const replyToken = event.replyToken;

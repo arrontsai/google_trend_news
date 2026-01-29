@@ -2,10 +2,12 @@
 create table if not exists daily_trends_summary (
   id bigint primary key generated always as identity,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  date date not null unique, -- Prevent multiple entries for the same day
-  summary_content text, -- The combined summary from Gemini
-  raw_data jsonb, -- Store the original raw RSS data for reference
-  line_sent boolean default false -- Track if sent to LINE
+  date date not null, -- Removed unique to allow different categories on same date
+  category text default 'tw_trends', -- 'tw_trends' or 'us_stocks'
+  summary_content text,
+  raw_data jsonb,
+  line_sent boolean default false,
+  unique (date, category) -- Combined unique constraint
 );
 
 -- Create a table to store LINE users
