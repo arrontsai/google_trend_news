@@ -116,15 +116,37 @@ async function callOpenAI(model: AIModel, prompt: string, systemPrompt: string):
 }
 
 async function callGemini(model: AIModel, prompt: string): Promise<string> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('Missing GEMINI_API_KEY');
+  const keys = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2].filter(Boolean);
+  if (keys.length === 0) throw new Error('Missing GEMINI_API_KEY');
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const genModel = genAI.getGenerativeModel({ model: MODEL_CONFIGS[model].modelId });
+  let lastError: any = null;
   
-  const result = await genModel.generateContent(prompt);
-  const response = await result.response;
-  return response.text();
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i] as string;
+    try {
+      console.log(`[AI-Core] Trying Gemini Key ${i + 1} for ${model}...`);
+      const genAI = new GoogleGenerativeAI(key);
+      const genModel = genAI.getGenerativeModel({ model: MODEL_CONFIGS[model].modelId });
+      
+      const result = await genModel.generateContent(prompt);
+      const response = await result.response;
+      return response.text();
+    } catch (error: any) {
+      lastError = error;
+      const errorMessage = (error.message || String(error)).toLowerCase();
+      
+      // 如果是 Quota 錯誤且還有下一個 Key，則繼續。否則丟出錯誤觸發平台層退讓。
+      if (
+        (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('limit')) && 
+        i < keys.length - 1
+      ) {
+        console.warn(`[AI-Core] Gemini Key ${i + 1} failed (Quota). Trying Key ${i + 2}...`);
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
 }
 
 async function callClaude(model: AIModel, prompt: string, systemPrompt: string): Promise<string> {
