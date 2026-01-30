@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useMemo } from 'react';
 import * as htmlToImage from 'html-to-image';
 import { jsPDF } from 'jspdf';
 
@@ -12,112 +12,157 @@ interface ReportCardProps {
 }
 
 const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSent }) => {
-  const cardRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const title = category === 'tw_trends' ? '🇹🇼 台股即時晨報' : '🇺🇸 美股即時快訊';
   const gradientClass = category === 'tw_trends' 
-    ? 'from-indigo-600 to-violet-600' 
-    : 'from-emerald-600 to-teal-600';
-  const fileName = `${category}_${date.replace(/\//g, '-')}.pdf`;
+    ? 'from-indigo-600 to-sky-500' 
+    : 'from-emerald-600 to-teal-400';
+  const colorHex = category === 'tw_trends' ? '#4f46e5' : '#059669';
+
+  // 將內容拆分為「頁面/投影片」
+  // 規則：依據標題 (例如 **標題**) 或 ### 做切分
+  const pages = useMemo(() => {
+    // 簡單的切分邏輯：找尋 **開頭的行，或是內容過長時切分
+    const lines = summary.split('\n');
+    const chunks: string[][] = [];
+    let currentChunk: string[] = [];
+
+    lines.forEach((line) => {
+      // 如果遇到雙星號標題且當前 chunk 已有內容，則另開一頁
+      if (line.trim().startsWith('**') && currentChunk.length > 5) {
+        chunks.push(currentChunk);
+        currentChunk = [];
+      }
+      currentChunk.push(line);
+    });
+    if (currentChunk.length > 0) chunks.push(currentChunk);
+
+    return chunks.map(c => c.join('\n'));
+  }, [summary]);
 
   const handleDownload = useCallback(async () => {
-    if (!cardRef.current) return;
+    if (!containerRef.current) return;
     
     setIsGenerating(true);
     try {
-      const element = cardRef.current;
+      const pdf = new jsPDF('p', 'px', 'a4');
+      const pageElements = containerRef.current.querySelectorAll('.report-page');
       
-      // 使用 html-to-image 將 DOM 轉為 PNG Data URL
-      const dataUrl = await htmlToImage.toPng(element, {
-        quality: 1,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff', // 強制白底輸出
-        style: {
-          transform: 'scale(1)',
-          transition: 'none',
-          color: '#000000', // 強制黑色字體
-        }
-      });
+      for (let i = 0; i < pageElements.length; i++) {
+        const element = pageElements[i] as HTMLElement;
+        
+        const dataUrl = await htmlToImage.toPng(element, {
+          quality: 1,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+          style: {
+            color: '#000000',
+            fontFamily: 'sans-serif'
+          }
+        });
 
-      // 取得圖片寬高以維持比例
-      const img = new Image();
-      img.src = dataUrl;
-      await new Promise((resolve) => (img.onload = resolve));
+        const imgProps = pdf.getImageProperties(dataUrl);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
 
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'px',
-        format: [img.width / 2, img.height / 2]
-      });
+        if (i > 0) pdf.addPage();
+        pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      }
 
-      pdf.addImage(dataUrl, 'PNG', 0, 0, img.width / 2, img.height / 2);
-      pdf.save(fileName);
+      pdf.save(`${category}_${date.replace(/\//g, '-')}.pdf`);
     } catch (error: any) {
-      console.error('PDF generation error detail:', error);
-      alert(`PDF 生成失敗: ${error.message || '庫解析錯誤'}。建議直接對螢幕進行截圖分享。`);
+      console.error('PDF generation failed:', error);
+      alert('PDF 生成失敗，請再試一次。');
     } finally {
       setIsGenerating(false);
     }
-  }, [fileName]);
+  }, [category, date]);
 
   return (
-    <div className="space-y-4">
-      {/* 這是被擷取區域 */}
-      <article 
-        ref={cardRef}
-        className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 overflow-hidden"
-      >
-        <div className="mb-4 flex flex-col gap-1 border-b border-zinc-100 pb-3 dark:border-zinc-800 text-left">
-          <h2 className={`text-xl font-black bg-clip-text text-transparent bg-gradient-to-r ${gradientClass} tracking-tight`}>
-            {title}
-          </h2>
-          <div className="flex justify-between items-center text-[9px] font-bold text-zinc-400 uppercase tracking-widest">
-            <span>{category.replace('_', ' ')}</span>
-            <span>{date}</span>
+    <div className="space-y-6">
+      {/* 投影片預覽區域 */}
+      <div ref={containerRef} className="flex flex-col gap-8">
+        {pages.map((content, idx) => (
+          <div key={idx} className="report-page-container relative group">
+            <article 
+              className="report-page rounded-[32px] border border-zinc-200 bg-white p-10 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 transition-transform active:scale-[0.99]"
+              style={{ minHeight: '500px', display: 'flex', flexDirection: 'column' }}
+            >
+              {/* Header */}
+              <div className="mb-8 flex flex-col gap-4 border-b-2 border-zinc-50 pb-6 dark:border-zinc-800">
+                <div className="flex items-center justify-between">
+                  <h2 className={`text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r ${gradientClass} tracking-tight`}>
+                    {title}
+                  </h2>
+                  <div className="px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-[10px] font-black text-zinc-500">
+                    PAGE {idx + 1} / {pages.length}
+                  </div>
+                </div>
+                <div className="flex justify-between items-center text-[11px] font-bold text-zinc-400 uppercase tracking-[0.2em]">
+                  <span>{category.replace('_', ' ')}</span>
+                  <span>{date}</span>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="flex-grow">
+                <div className="prose prose-zinc dark:prose-invert max-w-none">
+                  <pre className="whitespace-pre-wrap font-sans text-[15px] font-medium leading-[1.8] text-zinc-900 dark:text-zinc-50">
+                    {content}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-10 flex items-center justify-between opacity-40">
+                <div className="h-0.5 flex-grow bg-zinc-100 dark:bg-zinc-800 mr-4"></div>
+                <span className="text-[10px] font-bold tracking-tighter italic">Global Investment Intel</span>
+              </div>
+            </article>
           </div>
-        </div>
+        ))}
+      </div>
 
-        <div className="prose prose-zinc dark:prose-invert max-w-none text-left">
-          <pre className="whitespace-pre-wrap font-sans text-[13px] leading-relaxed text-zinc-900 dark:text-zinc-100">
-            {summary}
-          </pre>
-        </div>
+      {/* Floating Action Button for Download */}
+      <div className="sticky bottom-6 z-20">
+        <button
+          onClick={handleDownload}
+          disabled={isGenerating}
+          className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-2xl bg-zinc-900 px-6 py-5 text-lg font-black text-white shadow-2xl transition-all hover:bg-black active:scale-[0.97] disabled:opacity-50 dark:bg-white dark:text-black"
+        >
+          {isGenerating ? (
+            <>
+              <div className="h-5 w-5 animate-spin rounded-full border-3 border-zinc-400 border-t-white dark:border-zinc-500 dark:border-t-black" />
+              <span>正在封裝報表 PDF...</span>
+            </>
+          ) : (
+            <>
+              <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:via-white/40 transition-all opacity-0 group-hover:opacity-100"></div>
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="rotate-0 group-hover:-rotate-12 transition-transform">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>立即下載專業多頁 PDF</span>
+              <span className="ml-2 text-[10px] opacity-40 font-mono">SOCIAL SHARE SIZE</span>
+            </>
+          )}
+        </button>
+      </div>
 
-        <div className="mt-6 flex items-center justify-between border-t border-zinc-50 pt-3 dark:border-zinc-800/50">
-          <div className="flex gap-2">
-            {lineSent && (
-              <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[9px] font-bold text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                SENT TO LINE
-              </span>
-            )}
-          </div>
-          <span className="text-[9px] text-zinc-300 italic">Generated by Global Investment Assistant</span>
-        </div>
-      </article>
-
-      {/* 下載按鈕 */}
-      <button
-        onClick={handleDownload}
-        disabled={isGenerating}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 active:scale-[0.98] disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
-      >
-        {isGenerating ? (
-          <>
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-600" />
-            正在生成 PDF...
-          </>
-        ) : (
-          <>
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            💾 下載 PDF 報表
-          </>
-        )}
-      </button>
+      <style jsx>{`
+        .report-page {
+          background-image: 
+            radial-gradient(circle at 2px 2px, rgba(0,0,0,0.02) 1px, transparent 0);
+          background-size: 24px 24px;
+        }
+        :global(.dark) .report-page {
+          background-image: 
+            radial-gradient(circle at 2px 2px, rgba(255,255,255,0.02) 1px, transparent 0);
+        }
+      `}</style>
     </div>
   );
 };
