@@ -3,18 +3,20 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import Anthropic from '@anthropic-ai/sdk';
 
 /**
- * AI 模型類型定義 (2026 最新穩定版)
+ * AI 模型類型定義 (2026 最新版)
  */
 export type AIModel = 
-  | 'gemini-2.0-flash-lite' // GA 版: 高額度 (1000 RPD), 首選
-  | 'gemini-2.0-flash'      // GA 版: 性能均衡
-  | 'claude-3-5-sonnet'     // 旗艦級推理
-  | 'gpt-4o'                // OpenAI 旗艦
-  | 'grok-beta'             // xAI 備援
-  | 'gemini-1.5-pro'        // 經典高階
-  | 'claude-3-haiku'        // 極速模型
-  | 'gpt-4o-mini'           // 成本模型
-  | 'gemini-1.5-flash';      // 最終保底
+  | 'gemini-3-flash'        // 2026 最新最強 Flash 模型 (Preview)
+  | 'gemini-3-pro'          // 2026 最新最強 Pro 模型 (Preview)
+  | 'gemini-2.0-flash-lite' // GA 版: 高額度, 極速
+  | 'gemini-2.0-flash'      // GA 版: 穩定
+  | 'claude-3-5-sonnet'     
+  | 'gpt-4o'                
+  | 'grok-beta'             
+  | 'gemini-1.5-pro'        
+  | 'claude-3-haiku'        
+  | 'gpt-4o-mini'           
+  | 'gemini-1.5-flash';
 
 /**
  * 供應商配置與正式模型 ID
@@ -25,6 +27,8 @@ interface ModelConfig {
 }
 
 const MODEL_CONFIGS: Record<AIModel, ModelConfig> = {
+  'gemini-3-flash': { provider: 'google', modelId: 'gemini-3-flash-preview' },
+  'gemini-3-pro': { provider: 'google', modelId: 'gemini-3-pro-preview' },
   'gemini-2.0-flash-lite': { provider: 'google', modelId: 'gemini-2.0-flash-lite' },
   'gemini-2.0-flash': { provider: 'google', modelId: 'gemini-2.0-flash' },
   'claude-3-5-sonnet': { provider: 'anthropic', modelId: 'claude-3-5-sonnet-20241022' },
@@ -37,35 +41,35 @@ const MODEL_CONFIGS: Record<AIModel, ModelConfig> = {
 };
 
 /**
- * 最終退讓順序：以「有額度、速度快、品質穩」為優先
+ * 最終退讓順序：以「最新架構、最優額度」為優先
  */
 const MODEL_FALLBACK_ORDER: AIModel[] = [
-  'gemini-2.0-flash-lite', // 第一位：15 RPM / 1000 RPD 額度最慷慨
-  'gemini-2.0-flash',      // 第二位：速度與品質兼優
-  'claude-3-5-sonnet',     // 第三位：高品質推理
-  'gpt-4o',                // 第四位
-  'grok-beta',             // 第五位
-  'gemini-1.5-pro',        // 第六位
-  'claude-3-haiku',        // 第七位
-  'gpt-4o-mini',           // 第八位
-  'gemini-1.5-flash'       // 最後保底
+  'gemini-3-flash',        // 第一位：最新架構
+  'gemini-2.0-flash-lite', // 第二位：高額度 (1000 RPD)
+  'gemini-2.0-flash',      // 第三位
+  'gemini-3-pro',          // 第四位
+  'claude-3-5-sonnet',     // 第五位
+  'gpt-4o',                // 第六位
+  'grok-beta',             // 第七位
+  'gemini-1.5-pro',        
+  'claude-3-haiku',        
+  'gpt-4o-mini',           
+  'gemini-1.5-flash'
 ];
 
 /**
- * 輔助函式：檢查金鑰是否有效 (並非佔位符或過短)
+ * 輔助函式：金鑰有效性檢查
  */
 function isValidKey(key: string | undefined): boolean {
-  // 排除 xxx、垃圾字串或過短的金鑰
-  return !!key && key !== 'xxx' && key.trim().length > 15;
+  return !!key && key !== 'xxx' && key.trim().length > 10;
 }
 
 /**
- * 核心退讓邏輯：遍歷所有模型，失敗則嘗試下一個
+ * 核心退讓邏輯
  */
 export async function generateWithFallback(prompt: string, systemPrompt: string): Promise<string> {
-  const platformErrors: Record<string, string> = {};
-  let lastError: any = null;
-
+  const platformErrors: Record<string, string[]> = {};
+  
   for (const modelKey of MODEL_FALLBACK_ORDER) {
     const config = MODEL_CONFIGS[modelKey];
     
@@ -84,137 +88,106 @@ export async function generateWithFallback(prompt: string, systemPrompt: string)
           throw new Error(`Unsupported provider: ${config.provider}`);
       }
     } catch (error: any) {
-      lastError = error;
-      const errorMessage = (error.message || String(error)).toLowerCase();
-      platformErrors[config.provider] = errorMessage;
+      const errorMessage = (error.message || String(error)).trim();
+      
+      // 收集錯誤細節
+      if (!platformErrors[config.provider]) platformErrors[config.provider] = [];
+      platformErrors[config.provider].push(`[${modelKey}] ${errorMessage}`);
 
-      // 判斷是否為「可退讓/可跳過」的錯誤
-      const isRetryable = 
-        errorMessage.includes('429') || 
-        errorMessage.includes('quota') || 
-        errorMessage.includes('limit') ||
-        errorMessage.includes('400') ||
-        errorMessage.includes('401') ||
-        errorMessage.includes('403') ||
-        errorMessage.includes('404') ||
-        errorMessage.includes('not found') ||
-        errorMessage.includes('not supported') ||
-        errorMessage.includes('balance') ||
-        errorMessage.includes('credit') ||
-        errorMessage.includes('missing') ||
-        errorMessage.includes('invalid') ||
-        errorMessage.includes('authentication') ||
-        errorMessage.includes('api key');
-
-      if (isRetryable) {
-        console.warn(`[AI-Core] ${modelKey} failed (Retryable): ${errorMessage.slice(0, 80)}... Trying next...`);
-        continue;
-      } else {
-        console.error(`[AI-Core] ${modelKey} failed (NON-Retryable):`, error);
-        throw error;
-      }
+      // 判斷是否足以致命 (不應該繼續嘗試下一個模型)
+      // 這裡採取寬鬆策略：只要不是程式碼邏輯出錯，儘量往後退讓
+      console.warn(`[AI-Core] ${modelKey} failed: ${errorMessage.slice(0, 100)}...`);
+      continue;
     }
   }
 
-  // 全部失敗後整理診斷資訊供 UI 顯示
+  // 全部失敗：生成更精細的診斷報告
   const diagnosis = Object.entries(platformErrors)
-    .map(([p, e]) => `${p.toUpperCase()}: ${e.length > 40 ? e.slice(0, 40) + '...' : e}`)
+    .map(([p, errs]) => {
+      // 每個平台只取最具代表性的最後一個錯誤
+      const lastErr = errs[errs.length - 1];
+      return `${p.toUpperCase()}: ${lastErr.slice(0, 60)}...`;
+    })
     .join(' | ');
 
-  throw new Error(`[AI-Core] 全部模型皆失敗。診斷: ${diagnosis}`);
+  throw new Error(`[AI-Core] 全部模型嘗試完畢皆失敗。詳細診斷: ${diagnosis}`);
 }
 
 async function callOpenAI(model: AIModel, prompt: string, systemPrompt: string): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!isValidKey(apiKey)) throw new Error('Missing or invalid OPENAI_API_KEY');
+  if (!isValidKey(apiKey)) throw new Error('Invalid OpenAI Key');
 
   const openai = new OpenAI({ apiKey });
   const response = await openai.chat.completions.create({
     model: MODEL_CONFIGS[model].modelId,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: prompt }
-    ],
+    messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }],
     temperature: 0.7,
   });
-
   return response.choices[0].message.content || '';
 }
 
+/**
+ * Gemini 特殊調度：無差別徹底嘗試所有可用金鑰
+ */
 async function callGemini(model: AIModel, prompt: string): Promise<string> {
-  const keys = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_2].filter(isValidKey);
-  if (keys.length === 0) throw new Error('Missing or invalid GEMINI_API_KEY (No working key found)');
+  // 找出所有可能的金鑰名稱
+  const keyList = [
+    { name: 'GEMINI_API_KEY', value: process.env.GEMINI_API_KEY },
+    { name: 'GEMINI_API_KEY_2', value: process.env.GEMINI_API_KEY_2 }
+  ].filter(k => isValidKey(k.value));
 
-  let lastError: any = null;
+  if (keyList.length === 0) throw new Error('No valid Gemini API Keys found in config');
+
+  let keyErrors: string[] = [];
   
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i] as string;
+  for (const keyItem of keyList) {
     try {
-      const genAI = new GoogleGenerativeAI(key);
+      console.log(`[AI-Core] Trying ${model} with ${keyItem.name}...`);
+      const genAI = new GoogleGenerativeAI(keyItem.value as string);
       const genModel = genAI.getGenerativeModel({ model: MODEL_CONFIGS[model].modelId });
       
       const result = await genModel.generateContent(prompt);
       const response = await result.response;
       return response.text();
     } catch (error: any) {
-      lastError = error;
-      const errorMessage = (error.message || String(error)).toLowerCase();
+      const msg = (error.message || String(error)).toLowerCase();
+      console.warn(`[AI-Core] ${keyItem.name} failed for ${model}: ${msg.slice(0, 50)}`);
+      keyErrors.push(`${keyItem.name}: ${msg}`);
       
-      const isRetryableKeyError = 
-        errorMessage.includes('429') || 
-        errorMessage.includes('quota') || 
-        errorMessage.includes('limit') ||
-        errorMessage.includes('401') ||
-        errorMessage.includes('403') ||
-        errorMessage.includes('authentication') ||
-        errorMessage.includes('api key');
-
-      if (isRetryableKeyError && i < keys.length - 1) {
-        console.warn(`[AI-Core] Gemini Key ${i + 1} failed. Trying Key ${i + 2}...`);
-        continue;
-      }
-      throw error; 
+      // 無論什麼錯誤 (429, 401, 404, 甚至 location not supported)，只要還有下一個 Key 就試
+      continue; 
     }
   }
-  throw lastError;
+  
+  // 走到這裡代表所有 Key 都試過了
+  throw new Error(`All Gemini keys failed. [${keyErrors.map(e => e.slice(0, 30)).join('; ')}]`);
 }
 
 async function callClaude(model: AIModel, prompt: string, systemPrompt: string): Promise<string> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!isValidKey(apiKey)) throw new Error('Missing or invalid ANTHROPIC_API_KEY');
+  if (!isValidKey(apiKey)) throw new Error('Invalid Anthropic Key');
 
   const anthropic = new Anthropic({ apiKey });
   const response = await anthropic.messages.create({
     model: MODEL_CONFIGS[model].modelId,
     max_tokens: 4096,
     system: systemPrompt,
-    messages: [
-      { role: 'user', content: prompt }
-    ],
+    messages: [{ role: 'user', content: prompt }],
     temperature: 0.7,
   });
-
   const content = response.content[0];
   return (content.type === 'text') ? content.text : '';
 }
 
 async function callGrok(model: AIModel, prompt: string, systemPrompt: string): Promise<string> {
   const apiKey = process.env.GROK_API_KEY;
-  if (!isValidKey(apiKey)) throw new Error('Missing or invalid GROK_API_KEY');
+  if (!isValidKey(apiKey)) throw new Error('Invalid Grok Key');
 
-  const xai = new OpenAI({
-    apiKey: apiKey,
-    baseURL: 'https://api.x.ai/v1',
-  });
-
+  const xai = new OpenAI({ apiKey, baseURL: 'https://api.x.ai/v1' });
   const response = await xai.chat.completions.create({
     model: MODEL_CONFIGS[model].modelId,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: prompt }
-    ],
+    messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }],
     temperature: 0.7,
   });
-
   return response.choices[0].message.content || '';
 }
