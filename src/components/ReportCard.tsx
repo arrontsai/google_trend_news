@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
-import html2canvas from 'html2canvas';
+import React, { useRef, useState, useCallback } from 'react';
+import * as htmlToImage from 'html-to-image';
 import { jsPDF } from 'jspdf';
 
 interface ReportCardProps {
@@ -21,98 +21,66 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
     : 'from-emerald-600 to-teal-600';
   const fileName = `${category}_${date.replace(/\//g, '-')}.pdf`;
 
-  const handleDownload = async () => {
+  const handleDownload = useCallback(async () => {
     if (!cardRef.current) return;
     
     setIsGenerating(true);
     try {
       const element = cardRef.current;
       
-      // 使用 html2canvas 擷取畫面
-      const canvas = await html2canvas(element, {
-        scale: 2, // 提高解析度
-        useCORS: true,
-        backgroundColor: '#ffffff', // 強制輸出為白底
-        logging: false,
-        onclone: (clonedDoc) => {
-          // 修復 html2canvas 對於非標準顏色函數 (如 lab, oklab) 或漸層的解析報錯
-          const allElements = clonedDoc.querySelectorAll('*');
-          allElements.forEach((el) => {
-            const htmlEl = el as HTMLElement;
-            const style = window.getComputedStyle(htmlEl);
-            
-            // 檢查是否含有 "lab(" 關鍵字，這會導致 html2canvas 崩潰
-            if (style.color.includes('lab') || style.backgroundColor.includes('lab') || style.borderColor.includes('lab')) {
-                htmlEl.style.color = '#18181b'; // 降級為 zinc-900 系列
-                htmlEl.style.backgroundColor = 'transparent';
-                htmlEl.style.borderColor = '#e4e4e7';
-            }
-          });
-
-          // 專門修復標題漸層與現代 CSS 屬性
-          const titles = clonedDoc.querySelectorAll('[class*="bg-clip-text"]');
-          titles.forEach((el) => {
-            const htmlEl = el as HTMLElement;
-            // 強制降級為純色 (HEX 格式最穩定)
-            if (category === 'tw_trends') {
-              htmlEl.style.color = '#4f46e5'; // indigo-600
-            } else {
-              htmlEl.style.color = '#059669'; // emerald-600
-            }
-            // 徹底清除所有可能導致 html2canvas 報錯的現代屬性
-            htmlEl.style.backgroundImage = 'none';
-            htmlEl.style.background = 'none';
-            htmlEl.style.webkitBackgroundClip = 'initial';
-            htmlEl.style.backgroundClip = 'initial';
-            htmlEl.style.webkitTextFillColor = 'initial';
-          });
-
-          // 強制亮色模式樣式
-          const card = clonedDoc.querySelector('article');
-          if (card) {
-            card.style.backgroundColor = '#ffffff';
-            card.style.color = '#18181b';
-            card.style.borderColor = '#e4e4e7';
-            card.style.boxShadow = 'none'; // 陰影有時也會導致渲染問題
-          }
+      // 使用 html-to-image 將 DOM 轉為 PNG Data URL
+      // 這比 html2canvas 更能處理現代 CSS (如 lab, oklch, gradients)
+      const dataUrl = await htmlToImage.toPng(element, {
+        quality: 1,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff', // 強制白底輸出
+        style: {
+          // 在擷取時強制移除一些可能影響渲染的屬性，但通常 html-to-image 處理得很好
+          transform: 'scale(1)',
+          transition: 'none',
         }
       });
 
-      const imgData = canvas.toDataURL('image/png');
+      // 取得圖片寬高以維持比例
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise((resolve) => (img.onload = resolve));
+
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'px',
-        format: [canvas.width / 2, canvas.height / 2]
+        format: [img.width / 2, img.height / 2]
       });
 
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
+      pdf.addImage(dataUrl, 'PNG', 0, 0, img.width / 2, img.height / 2);
       pdf.save(fileName);
     } catch (error: any) {
       console.error('PDF generation error detail:', error);
-      alert(`PDF 生成失敗: ${error.message || '未知錯誤'}。請截圖並回報。`);
+      // 顯示更友善的錯誤訊息
+      alert(`PDF 生成失敗: ${error.message || '庫解析錯誤'}。建議直接對螢幕進行截圖分享。`);
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [fileName]);
 
   return (
     <div className="space-y-4">
-      {/* 這是會被擷取成 PDF 的區域 */}
+      {/* 這是被擷取區域 */}
       <article 
         ref={cardRef}
         className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
       >
-        <div className="mb-6 flex flex-col gap-2 border-b border-zinc-100 pb-4 dark:border-zinc-800">
+        <div className="mb-6 flex flex-col gap-2 border-b border-zinc-100 pb-4 dark:border-zinc-800 text-left">
           <h2 className={`text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r ${gradientClass} tracking-tight`}>
             {title}
           </h2>
-          <div className="flex justify-between items-center">
-            <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">{category}</span>
-            <span className="text-xs font-medium text-zinc-500">{date}</span>
+          <div className="flex justify-between items-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+            <span>{category.replace('_', ' ')}</span>
+            <span>{date}</span>
           </div>
         </div>
 
-        <div className="prose prose-zinc dark:prose-invert max-w-none">
+        <div className="prose prose-zinc dark:prose-invert max-w-none text-left">
           <pre className="whitespace-pre-wrap font-sans text-base leading-relaxed text-zinc-800 dark:text-zinc-200">
             {summary}
           </pre>
@@ -130,7 +98,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
         </div>
       </article>
 
-      {/* 下載按鈕 (不包含在擷取區域內) */}
+      {/* 下載按鈕 */}
       <button
         onClick={handleDownload}
         disabled={isGenerating}
