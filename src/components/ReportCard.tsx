@@ -19,12 +19,9 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
   const gradientClass = category === 'tw_trends' 
     ? 'from-indigo-600 to-sky-500' 
     : 'from-emerald-600 to-teal-400';
-  const colorHex = category === 'tw_trends' ? '#4f46e5' : '#059669';
 
   // 將內容拆分為「頁面/投影片」
-  // 規則：依據標題 (例如 **標題**) 或 ### 做切分
   const pages = useMemo(() => {
-    // 簡單的切分邏輯：找尋 **開頭的行，或是內容過長時切分
     const lines = summary.split('\n');
     const chunks: string[][] = [];
     let currentChunk: string[] = [];
@@ -58,17 +55,9 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
           pixelRatio: 2,
           backgroundColor: '#ffffff',
           style: {
+            // 強制使用基礎 RGB 顏色，避免瀏覽器將其轉為 lab() 或 oklch()
             color: '#000000',
-            fontFamily: 'sans-serif',
-            opacity: '1',
-          },
-          filter: (node) => {
-            // 確保所有文字節點在擷取時都是黑色的
-            if (node instanceof HTMLElement) {
-              node.style.color = '#000000';
-              node.style.opacity = '1';
-            }
-            return true;
+            fontFamily: 'Arial, sans-serif',
           }
         });
 
@@ -90,26 +79,50 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
   }, [category, date]);
 
   return (
-    <div className="space-y-6">
+    <div className="relative space-y-6">
       {/* 投影片預覽區域 */}
       <div ref={containerRef} className="flex flex-col gap-8">
         {pages.map((content, idx) => (
           <div key={idx} className="report-page-container relative group">
             <article 
-              className="report-page rounded-[32px] border border-zinc-200 bg-white p-10 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 transition-transform active:scale-[0.99]"
-              style={{ minHeight: '500px', display: 'flex', flexDirection: 'column' }}
+              className="report-page rounded-[32px] border border-zinc-200 bg-white p-10 shadow-xl dark:border-zinc-800 dark:bg-zinc-900"
+              style={{ minHeight: '550px', display: 'flex', flexDirection: 'column' }}
             >
               {/* Header */}
-              <div className="mb-8 flex flex-col gap-4 border-b-2 border-zinc-50 pb-6 dark:border-zinc-800">
+              <div className="mb-8 flex flex-col gap-4 border-b-2 border-zinc-100 dark:border-zinc-800 pb-6 relative">
                 <div className="flex items-center justify-between">
-                  <h2 className={`text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r ${gradientClass} tracking-tight`}>
+                  <h2 
+                    className={`text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r ${gradientClass} tracking-tight`}
+                    style={{ WebkitTextFillColor: 'transparent' }}
+                  >
                     {title}
                   </h2>
-                  <div className="px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-[10px] font-black text-zinc-500">
-                    PAGE {idx + 1} / {pages.length}
-                  </div>
+                  
+                  {/* 下載按鈕 - 放在右上角，小小的 */}
+                  {idx === 0 && (
+                    <button
+                      onClick={handleDownload}
+                      disabled={isGenerating}
+                      title="下載 PDF 報表"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-black text-[10px] font-bold shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
+                    >
+                      {isGenerating ? (
+                        <div className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-400 border-t-white dark:border-t-black" />
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      )}
+                      <span>{isGenerating ? '生成中' : 'PDF'}</span>
+                    </button>
+                  )}
+
+                  {idx > 0 && (
+                    <div className="px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-[10px] font-black text-zinc-500">
+                      PAGE {idx + 1} / {pages.length}
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between items-center text-[11px] font-bold text-zinc-400 uppercase tracking-[0.2em]">
+                
+                <div className="flex justify-between items-center text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em]">
                   <span>{category.replace('_', ' ')}</span>
                   <span>{date}</span>
                 </div>
@@ -118,58 +131,40 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
               {/* Body */}
               <div className="flex-grow">
                 <div className="prose prose-zinc dark:prose-invert max-w-none">
-                  <pre className="whitespace-pre-wrap font-sans text-[15px] font-semibold leading-[1.8] text-zinc-950 dark:text-zinc-100">
+                  <pre 
+                    className="whitespace-pre-wrap font-sans text-[15px] font-bold leading-[1.8]"
+                    style={{ color: '#000000' }} // 硬編碼 HEX 避免 lab() 轉換，CSS 變數會有問題
+                  >
                     {content}
                   </pre>
                 </div>
               </div>
 
               {/* Footer */}
-              <div className="mt-10 flex items-center justify-between opacity-40">
-                <div className="h-0.5 flex-grow bg-zinc-100 dark:bg-zinc-800 mr-4"></div>
-                <span className="text-[10px] font-bold tracking-tighter italic">Global Investment Intel</span>
+              <div className="mt-10 flex items-center justify-between opacity-30">
+                <div className="h-px flex-grow bg-zinc-200 dark:bg-zinc-800 mr-4"></div>
+                <span className="text-[9px] font-black tracking-widest italic text-zinc-400">GLOBAL INTEL</span>
               </div>
             </article>
           </div>
         ))}
       </div>
 
-      {/* Floating Action Button for Download */}
-      <div className="sticky bottom-6 z-20">
-        <button
-          onClick={handleDownload}
-          disabled={isGenerating}
-          className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-2xl bg-zinc-900 px-6 py-5 text-lg font-black text-white shadow-2xl transition-all hover:bg-black active:scale-[0.97] disabled:opacity-50 dark:bg-white dark:text-black"
-        >
-          {isGenerating ? (
-            <>
-              <div className="h-5 w-5 animate-spin rounded-full border-3 border-zinc-400 border-t-white dark:border-zinc-500 dark:border-t-black" />
-              <span>正在封裝報表 PDF...</span>
-            </>
-          ) : (
-            <>
-              <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:via-white/40 transition-all opacity-0 group-hover:opacity-100"></div>
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="rotate-0 group-hover:-rotate-12 transition-transform">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              <span>立即下載專業多頁 PDF</span>
-              <span className="ml-2 text-[10px] opacity-40 font-mono">SOCIAL SHARE SIZE</span>
-            </>
-          )}
-        </button>
-      </div>
-
       <style jsx>{`
         .report-page {
-          background-image: 
-            radial-gradient(circle at 2px 2px, rgba(0,0,0,0.02) 1px, transparent 0);
-          background-size: 24px 24px;
+          background-image: radial-gradient(circle at 1px 1px, rgba(0,0,0,0.03) 1px, transparent 0);
+          background-size: 20px 20px;
         }
         :global(.dark) .report-page {
-          background-image: 
-            radial-gradient(circle at 2px 2px, rgba(255,255,255,0.02) 1px, transparent 0);
+          background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0);
+          color: white; /* 網頁端顯示 */
+        }
+        pre {
+          /* 確保在網頁端閱讀時暗色模式正常，但 style 中已強制黑字用於 PDF */
+          color: inherit;
+        }
+        :global(.dark) pre {
+          color: #f4f4f5 !important; /* 僅網頁端顯示 */
         }
       `}</style>
     </div>
