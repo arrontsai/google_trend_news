@@ -59,7 +59,16 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
           backgroundColor: '#ffffff',
           style: {
             color: '#000000',
-            fontFamily: 'sans-serif'
+            fontFamily: 'sans-serif',
+            opacity: '1',
+          },
+          filter: (node) => {
+            // 確保所有文字節點在擷取時都是黑色的
+            if (node instanceof HTMLElement) {
+              node.style.color = '#000000';
+              node.style.opacity = '1';
+            }
+            return true;
           }
         });
 
@@ -109,7 +118,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
               {/* Body */}
               <div className="flex-grow">
                 <div className="prose prose-zinc dark:prose-invert max-w-none">
-                  <pre className="whitespace-pre-wrap font-sans text-[15px] font-medium leading-[1.8] text-zinc-900 dark:text-zinc-50">
+                  <pre className="whitespace-pre-wrap font-sans text-[15px] font-semibold leading-[1.8] text-zinc-950 dark:text-zinc-100">
                     {content}
                   </pre>
                 </div>
