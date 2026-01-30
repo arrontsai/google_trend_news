@@ -26,28 +26,58 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
     
     setIsGenerating(true);
     try {
-      // 擷取前暫時短暫調整樣式優化圖片品質
       const element = cardRef.current;
       
+      // 使用 html2canvas 擷取畫面
       const canvas = await html2canvas(element, {
         scale: 2, // 提高解析度
         useCORS: true,
-        backgroundColor: '#ffffff',
+        backgroundColor: '#ffffff', // 強制輸出為白底
         logging: false,
+        onclone: (clonedDoc) => {
+          // 修復 html2canvas 對於 bg-clip-text 漸層文字的相容性問題
+          const titles = clonedDoc.querySelectorAll('[class*="bg-clip-text"]');
+          titles.forEach((el) => {
+            const htmlEl = el as HTMLElement;
+            // 將漸層文字改為對應供應商的純色，避免渲染失敗
+            if (category === 'tw_trends') {
+              htmlEl.style.color = '#4f46e5'; // indigo-600
+            } else {
+              htmlEl.style.color = '#059669'; // emerald-600
+            }
+            htmlEl.style.backgroundImage = 'none';
+            htmlEl.style.webkitBackgroundClip = 'initial';
+            htmlEl.style.backgroundClip = 'initial';
+            htmlEl.style.webkitTextFillColor = 'initial';
+          });
+
+          // 強制克隆後的元素為亮色模式樣式，確保 PDF 輸出統一
+          const card = clonedDoc.querySelector('article');
+          if (card) {
+            card.style.backgroundColor = '#ffffff';
+            card.style.color = '#18181b'; // zinc-900
+            card.style.borderColor = '#e4e4e7'; // zinc-200
+          }
+          
+          const pre = clonedDoc.querySelector('pre');
+          if (pre) {
+            pre.style.color = '#27272a'; // zinc-800
+          }
+        }
       });
 
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'px',
-        format: [canvas.width / 2, canvas.height / 2] // 保持比例
+        format: [canvas.width / 2, canvas.height / 2]
       });
 
       pdf.addImage(imgData, 'PNG', 0, 0, canvas.width / 2, canvas.height / 2);
       pdf.save(fileName);
-    } catch (error) {
-      console.error('PDF generation failed:', error);
-      alert('PDF 生成失敗，請再試一次。');
+    } catch (error: any) {
+      console.error('PDF generation error detail:', error);
+      alert(`PDF 生成失敗: ${error.message || '未知錯誤'}。請截圖並回報。`);
     } finally {
       setIsGenerating(false);
     }
