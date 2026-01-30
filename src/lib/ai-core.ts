@@ -26,10 +26,10 @@ const MODEL_CONFIGS: Record<AIModel, ModelConfig> = {
   'claude-3-5-sonnet': { provider: 'anthropic', modelId: 'claude-3-5-sonnet-20241022' },
   'gpt-4o': { provider: 'openai', modelId: 'gpt-4o' },
   'grok-beta': { provider: 'xai', modelId: 'grok-beta' },
-  'gemini-1.5-pro': { provider: 'google', modelId: 'gemini-1.5-pro-latest' },
+  'gemini-1.5-pro': { provider: 'google', modelId: 'gemini-1.5-pro' },
   'claude-3-haiku': { provider: 'anthropic', modelId: 'claude-3-haiku-20240307' },
   'gpt-4o-mini': { provider: 'openai', modelId: 'gpt-4o-mini' },
-  'gemini-1.5-flash': { provider: 'google', modelId: 'gemini-1.5-flash-latest' },
+  'gemini-1.5-flash': { provider: 'google', modelId: 'gemini-1.5-flash' },
 };
 
 // 最終退讓順序 (優先採用慷慨且高效的模型)
@@ -135,12 +135,18 @@ async function callGemini(model: AIModel, prompt: string): Promise<string> {
       lastError = error;
       const errorMessage = (error.message || String(error)).toLowerCase();
       
-      // 如果是 Quota 錯誤且還有下一個 Key，則繼續。否則丟出錯誤觸發平台層退讓。
-      if (
-        (errorMessage.includes('429') || errorMessage.includes('quota') || errorMessage.includes('limit')) && 
-        i < keys.length - 1
-      ) {
-        console.warn(`[AI-Core] Gemini Key ${i + 1} failed (Quota). Trying Key ${i + 2}...`);
+      // 識別 Key 相關的可重試錯誤 (Quota 或 Auth 失敗)
+      const isKeyError = 
+        errorMessage.includes('429') || 
+        errorMessage.includes('quota') || 
+        errorMessage.includes('limit') ||
+        errorMessage.includes('401') ||
+        errorMessage.includes('403') ||
+        errorMessage.includes('authentication') ||
+        errorMessage.includes('api key');
+
+      if (isKeyError && i < keys.length - 1) {
+        console.warn(`[AI-Core] Gemini Key ${i + 1} failed (${errorMessage}). Trying Key ${i + 2}...`);
         continue;
       }
       throw error;
