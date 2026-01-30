@@ -35,33 +35,45 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
         backgroundColor: '#ffffff', // 強制輸出為白底
         logging: false,
         onclone: (clonedDoc) => {
-          // 修復 html2canvas 對於 bg-clip-text 漸層文字的相容性問題
+          // 修復 html2canvas 對於非標準顏色函數 (如 lab, oklab) 或漸層的解析報錯
+          const allElements = clonedDoc.querySelectorAll('*');
+          allElements.forEach((el) => {
+            const htmlEl = el as HTMLElement;
+            const style = window.getComputedStyle(htmlEl);
+            
+            // 檢查是否含有 "lab(" 關鍵字，這會導致 html2canvas 崩潰
+            if (style.color.includes('lab') || style.backgroundColor.includes('lab') || style.borderColor.includes('lab')) {
+                htmlEl.style.color = '#18181b'; // 降級為 zinc-900 系列
+                htmlEl.style.backgroundColor = 'transparent';
+                htmlEl.style.borderColor = '#e4e4e7';
+            }
+          });
+
+          // 專門修復標題漸層與現代 CSS 屬性
           const titles = clonedDoc.querySelectorAll('[class*="bg-clip-text"]');
           titles.forEach((el) => {
             const htmlEl = el as HTMLElement;
-            // 將漸層文字改為對應供應商的純色，避免渲染失敗
+            // 強制降級為純色 (HEX 格式最穩定)
             if (category === 'tw_trends') {
               htmlEl.style.color = '#4f46e5'; // indigo-600
             } else {
               htmlEl.style.color = '#059669'; // emerald-600
             }
+            // 徹底清除所有可能導致 html2canvas 報錯的現代屬性
             htmlEl.style.backgroundImage = 'none';
+            htmlEl.style.background = 'none';
             htmlEl.style.webkitBackgroundClip = 'initial';
             htmlEl.style.backgroundClip = 'initial';
             htmlEl.style.webkitTextFillColor = 'initial';
           });
 
-          // 強制克隆後的元素為亮色模式樣式，確保 PDF 輸出統一
+          // 強制亮色模式樣式
           const card = clonedDoc.querySelector('article');
           if (card) {
             card.style.backgroundColor = '#ffffff';
-            card.style.color = '#18181b'; // zinc-900
-            card.style.borderColor = '#e4e4e7'; // zinc-200
-          }
-          
-          const pre = clonedDoc.querySelector('pre');
-          if (pre) {
-            pre.style.color = '#27272a'; // zinc-800
+            card.style.color = '#18181b';
+            card.style.borderColor = '#e4e4e7';
+            card.style.boxShadow = 'none'; // 陰影有時也會導致渲染問題
           }
         }
       });
