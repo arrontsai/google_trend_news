@@ -30,13 +30,13 @@ export async function summarizeTrends(trends: TrendItem[]): Promise<string> {
     🏭 產業與社群熱議 (PTT/Threads)
     (精煉內容)
 
-    📊 法人動向與資金
-    (精煉內容)
+    📊 市場動態與資金
+    (分析法人動向、個股漲跌原因)
 
     ⚠️ 風險提醒
-    (一句話或短語)
+    (一句話或短語，必須包含)
 
-    標的關鍵字：(格式：公司名(代碼): 摘要 | 用 | 分隔。代碼請包含台股四位數字或美股代號)
+    標的關鍵字：(格式：公司名(代碼): 摘要 | 用 | 分隔)
   `;
 
   return await generateWithFallback(prompt, systemPrompt);

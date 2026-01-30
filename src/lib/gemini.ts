@@ -43,10 +43,10 @@ export async function summarizeUSStocksWithGemini(news: StockNewsItem[], marketC
     (精煉內容)
 
     📊 市場動態與資金
-    (分析重要個股漲跌原因)
+    (詳細分析重要個股漲跌原因、資金流向)
 
     ⚠️ 風險提醒
-    (一句話或短語)
+    (一句話或短語，必須包含)
 
     標的關鍵字：(格式：公司名(代碼): 摘要 | 用 | 分隔)
   `;
