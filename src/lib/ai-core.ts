@@ -68,6 +68,18 @@ function isValidKey(key: string | undefined): boolean {
  * 核心退讓邏輯
  */
 export async function generateWithFallback(prompt: string, systemPrompt: string): Promise<string> {
+  // 本地端測試：不要真的送去模型，使用模擬數據
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[AI-Core] Development mode detected: Using MOCK data.');
+    return `**[模擬報表]**
+這是一份在開發環境生成的模擬測試報表。
+1. **測試重點：** PDF 下載功能是否正常？
+2. **視覺驗證：** 觀察漸層標題、白色背景與元件排版。
+3. **備註：** 本內容並非由 AI 生成，不消耗任何 API 配額。
+
+標的關鍵字：模擬(1234)、測試(5678)、開發(9012)。`;
+  }
+
   const platformErrors: Record<string, string[]> = {};
   
   for (const modelKey of MODEL_FALLBACK_ORDER) {
