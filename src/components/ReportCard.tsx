@@ -22,22 +22,16 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
 
   /**
    * 智能分頁邏輯
-   * 偵測主要章節標題進行切分，確保內容分布均勻且不被截斷
    */
   const pages = useMemo(() => {
     const lines = summary.split('\n');
     const chunks: string[][] = [];
     let currentChunk: string[] = [];
 
-    // 定義會觸發分頁的關鍵標頭
     const sectionMarkers = ['📊', '⚠️', '標的關鍵字'];
 
     lines.forEach((line) => {
       const trimmedLine = line.trim();
-      
-      // 觸發分頁條件：
-      // 1. 遇到雙星號標題且當前 chunk 已有一定長度
-      // 2. 遇到特定的 Emoji 章節標題
       const isNewSection = trimmedLine.startsWith('**') || sectionMarkers.some(m => trimmedLine.startsWith(m));
       
       if (isNewSection && currentChunk.length >= 8) {
@@ -61,26 +55,51 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
       const pageElements = containerRef.current.querySelectorAll('.report-page');
       
       for (let i = 0; i < pageElements.length; i++) {
-        const element = pageElements[i] as HTMLElement;
+        const originalElement = pageElements[i] as HTMLElement;
         
-        const dataUrl = await htmlToImage.toPng(element, {
+        // --- 核心修復：狀態隔離與離屏渲染 ---
+        // 1. 建立一個離屏容器
+        const offscreenContainer = document.createElement('div');
+        offscreenContainer.style.position = 'absolute';
+        offscreenContainer.style.left = '-9999px';
+        offscreenContainer.style.top = '0';
+        offscreenContainer.style.width = originalElement.offsetWidth + 'px';
+        document.body.appendChild(offscreenContainer);
+
+        // 2. 克隆節點
+        const clone = originalElement.cloneNode(true) as HTMLElement;
+        
+        // 3. 強制設定克隆節點的所有文字顏色為純黑，背景為純白
+        // 這能徹底避開 lab() 顏色被轉換為透明的問題
+        clone.style.backgroundColor = '#ffffff';
+        clone.style.color = '#000000';
+        
+        const allTextElements = clone.querySelectorAll('*');
+        allTextElements.forEach((el) => {
+          if (el instanceof HTMLElement) {
+            el.style.color = '#000000';
+            el.style.opacity = '1';
+            el.style.backgroundColor = 'transparent';
+            // 標題漸層在 PDF 中通常難以渲染，改為實色以保證清晰度
+            if (el.tagName === 'H2') {
+              el.style.background = 'none';
+              el.style.webkitTextFillColor = '#000000';
+              el.style.color = '#000000';
+            }
+          }
+        });
+
+        offscreenContainer.appendChild(clone);
+
+        // 4. 對克隆後的離屏節點進行擷取 (以此保證不影響網頁端)
+        const dataUrl = await htmlToImage.toPng(clone, {
           quality: 1,
           pixelRatio: 2,
           backgroundColor: '#ffffff',
-          style: {
-            color: '#000000',
-            fontFamily: 'Arial, sans-serif',
-            opacity: '1',
-          },
-          filter: (node) => {
-            // 強制所有文字在導出時為黑色，無視網頁端目前的模式
-            if (node instanceof HTMLElement) {
-              node.style.color = '#000000';
-              node.style.opacity = '1';
-            }
-            return true;
-          }
         });
+
+        // 5. 清理離屏容器
+        document.body.removeChild(offscreenContainer);
 
         const imgProps = pdf.getImageProperties(dataUrl);
         const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -93,7 +112,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
       pdf.save(`${category}_${date.replace(/\//g, '-')}.pdf`);
     } catch (error: any) {
       console.error('PDF generation failed:', error);
-      alert('PDF 生成失敗，請再試一次。');
+      alert('PDF 生成失敗，建議深呼吸後再試一次。');
     } finally {
       setIsGenerating(false);
     }
@@ -106,7 +125,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
         {pages.map((content, idx) => (
           <div key={idx} className="report-page-container relative group">
             <article 
-              className="report-page rounded-[32px] border border-zinc-200 bg-white p-10 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 overflow-hidden"
+              className="report-page rounded-[32px] border border-zinc-200 bg-white p-10 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 overflow-hidden transition-colors"
               style={{ minHeight: '580px', display: 'flex', flexDirection: 'column' }}
             >
               {/* Header */}
@@ -124,14 +143,14 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
                     <button
                       onClick={handleDownload}
                       disabled={isGenerating}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-bold shadow-lg transition-transform hover:scale-105 active:scale-95 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-bold shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
                     >
                       {isGenerating ? (
                         <div className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-400 border-t-white dark:border-t-zinc-900" />
                       ) : (
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                       )}
-                      <span>{isGenerating ? '生成中' : 'PDF'}</span>
+                      <span>{isGenerating ? '正在導出' : 'PDF'}</span>
                     </button>
                   )}
 
@@ -149,12 +168,8 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
               {/* Body */}
               <div className="flex-grow">
                 <div className="prose prose-zinc dark:prose-invert max-w-none">
-                  {/* 
-                    重要：移除網頁端顯示時的硬編碼黑字。
-                    使用 Tailwind 類別以支援暗色模式閱讀。
-                    PDF 導出時會透過 htmlToImage 的 filter/style 重新強制轉變。
-                  */}
-                  <pre className="whitespace-pre-wrap font-sans text-base font-semibold leading-[1.8] text-zinc-950 dark:text-zinc-50 transition-colors">
+                  {/* 恢復網頁端自適應顏色，不再硬編碼黑色 */}
+                  <pre className="whitespace-pre-wrap font-sans text-base font-bold leading-[1.8] text-zinc-950 dark:text-zinc-50 transition-colors">
                     {content}
                   </pre>
                 </div>
@@ -163,7 +178,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ summary, category, date, lineSe
               {/* Footer */}
               <div className="mt-10 flex items-center justify-between opacity-30">
                 <div className="h-px flex-grow bg-zinc-200 dark:bg-zinc-800 mr-4"></div>
-                <span className="text-[9px] font-black tracking-widest italic text-zinc-400">GLOBAL INVESTMENT INTEL</span>
+                <span className="text-[9px] font-black tracking-widest text-zinc-400 italic">GLOBAL INVESTMENT</span>
               </div>
             </article>
           </div>
