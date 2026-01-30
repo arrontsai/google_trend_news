@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
 import TriggerButton from '@/components/TriggerButton';
+import ReportCard from '@/components/ReportCard';
 
 // Force dynamic rendering to ensure fresh data
 export const dynamic = 'force-dynamic';
@@ -54,20 +55,12 @@ export default async function Home() {
             </div>
             
             {tw ? (
-              <article className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm transition-all hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/50">
-                <div className="prose prose-zinc dark:prose-invert max-w-none">
-                  <pre className="whitespace-pre-wrap font-sans text-base leading-relaxed text-zinc-800 dark:text-zinc-200">
-                    {tw.summary_content}
-                  </pre>
-                </div>
-                {tw.line_sent && (
-                  <div className="mt-6 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-                    <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                      SENT TO LINE
-                    </span>
-                  </div>
-                )}
-              </article>
+              <ReportCard 
+                summary={tw.summary_content} 
+                category="tw_trends" 
+                date={todayStr} 
+                lineSent={tw.line_sent} 
+              />
             ) : (
               <div className="rounded-2xl border-2 border-dashed border-zinc-200 p-12 text-center dark:border-zinc-800">
                 <p className="text-zinc-500 text-sm">今日尚無台股摘要。</p>
@@ -87,20 +80,12 @@ export default async function Home() {
             </div>
             
             {us ? (
-              <article className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm transition-all hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900/50">
-                <div className="prose prose-zinc dark:prose-invert max-w-none">
-                  <pre className="whitespace-pre-wrap font-sans text-base leading-relaxed text-zinc-800 dark:text-zinc-200">
-                    {us.summary_content}
-                  </pre>
-                </div>
-                {us.line_sent && (
-                  <div className="mt-6 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-                    <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
-                      SENT TO LINE
-                    </span>
-                  </div>
-                )}
-              </article>
+              <ReportCard 
+                summary={us.summary_content} 
+                category="us_stocks" 
+                date={todayStr} 
+                lineSent={us.line_sent} 
+              />
             ) : (
               <div className="rounded-2xl border-2 border-dashed border-zinc-200 p-12 text-center dark:border-zinc-800">
                 <p className="text-zinc-500 text-sm">今日尚無美股摘要。</p>
