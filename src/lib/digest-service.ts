@@ -6,9 +6,9 @@ import { getPriceTrend, formatPriceTrend } from './finance';
 import { fetchUSStockNews, fetchMarketContext } from './us-stocks';
 import { summarizeUSStocksWithGemini } from './gemini';
 
-export async function generateAndSendDigest(targetUserId?: string) {
+export async function generateAndSendDigest(targetUserId?: string, period: string = 'morning') {
   try {
-    console.log('Generating digest...');
+    console.log(`Generating digest for period: ${period}...`);
 
     // 1. Fetch Trends (Consolidated from Multiple Sources)
     console.log('Fetching trends from PTT, Google News, Trends, X...');
@@ -20,11 +20,9 @@ export async function generateAndSendDigest(targetUserId?: string) {
     console.log('AI Summary generated successfully.');
 
     // 2.5 Extract Tickers and Add Price Trends
-    // Look for patterns like Name(Ticker)
     const tickerRegex = /([\u4e00-\u9fa5\w\s]+)\(([\dA-Z.\^]{3,10})\)/g;
     const matches = Array.from(summary.matchAll(tickerRegex));
     
-    // Create a map of ticker -> name for uniqueness and name recall
     const tickerMap = new Map<string, string>();
     matches.forEach(m => {
       const name = m[1].trim();
@@ -44,7 +42,7 @@ export async function generateAndSendDigest(targetUserId?: string) {
       trackedStocks = priceResults.filter(p => p.price !== null);
     }
 
-    // 3. Save to Supabase
+    // 3. Save to Supabase (Add period to upsert)
     const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
       .from('daily_trends_summary')
@@ -52,11 +50,12 @@ export async function generateAndSendDigest(targetUserId?: string) {
         { 
           date: today, 
           category: 'tw_trends',
+          period: period, // 新增時段欄位
           summary_content: summary, 
           raw_data: trends,
           line_sent: false 
         },
-        { onConflict: 'date, category' }
+        { onConflict: 'date, category, period' } // 需要資料庫對應更新唯一約束
       )
       .select()
       .single();
@@ -78,7 +77,7 @@ export async function generateAndSendDigest(targetUserId?: string) {
         price: stock.price,
         change_percent: stock.changePercent,
         currency: stock.currency,
-        raw_metadata: stock // Store the whole object for now
+        raw_metadata: stock 
       }));
 
       const { error: trackingError } = await supabase
@@ -87,7 +86,6 @@ export async function generateAndSendDigest(targetUserId?: string) {
 
       if (trackingError) {
         console.error('Error saving stock tracking data:', trackingError);
-        // We don't throw here to avoid failing the whole digest if tracking fails
       }
     }
 
@@ -96,7 +94,6 @@ export async function generateAndSendDigest(targetUserId?: string) {
     if (targetUserId) {
       userIds = [targetUserId];
     } else {
-      // Fetch all users from Supabase
       const { data: users, error: userError } = await supabase
         .from('line_users')
         .select('user_id');
@@ -105,7 +102,6 @@ export async function generateAndSendDigest(targetUserId?: string) {
         userIds = users.map(u => u.user_id);
       }
       
-      // Fallback if DB is empty but env var exists
       if (userIds.length === 0 && process.env.LINE_USER_ID) {
         userIds = [process.env.LINE_USER_ID];
       }
@@ -115,13 +111,10 @@ export async function generateAndSendDigest(targetUserId?: string) {
         console.log(`Broadcasting to ${userIds.length} users...`);
         await Promise.all(userIds.map(id => pushMessage(id, summary).catch(e => console.error(`Error sending to ${id}:`, e))));
         
-        // Update DB to mark as sent
         await supabase
             .from('daily_trends_summary')
             .update({ line_sent: true })
             .eq('id', data.id);
-    } else {
-        console.log('No user IDs found for broadcast.');
     }
 
     return { success: true, summary: summary };
@@ -131,9 +124,9 @@ export async function generateAndSendDigest(targetUserId?: string) {
   }
 }
 
-export async function generateAndSendUSStockDigest(targetUserId?: string) {
+export async function generateAndSendUSStockDigest(targetUserId?: string, period: string = 'morning') {
   try {
-    console.log('Generating US Stock digest...');
+    console.log(`Generating US Stock digest for period: ${period}...`);
 
     // 1. Fetch US Stock News & Context
     console.log('Fetching US stock news and market context...');
@@ -142,8 +135,7 @@ export async function generateAndSendUSStockDigest(targetUserId?: string) {
     
     console.log(`Fetched ${news.length} news items. Starting AI summarization with context...`);
 
-    // 2. Summarize with Gemini (Pass context if needed, currently summarizeUSStocksWithGemini takes news)
-    // We update summarizeUSStocksWithGemini later or wrap it
+    // 2. Summarize
     const summary = await summarizeUSStocksWithGemini(news, context);
     console.log('AI US Stock Summary generated successfully.');
 
@@ -155,11 +147,12 @@ export async function generateAndSendUSStockDigest(targetUserId?: string) {
         { 
           date: today, 
           category: 'us_stocks',
+          period: period, // 新增時段欄位
           summary_content: summary, 
           raw_data: { news, context },
           line_sent: false 
         },
-        { onConflict: 'date, category' }
+        { onConflict: 'date, category, period' }
       )
       .select()
       .single();
@@ -246,6 +239,33 @@ export async function sendLatestStockPrices(targetUserId: string) {
     return { success: true };
   } catch (err) {
     console.error('Failed to send stock prices:', err);
+    throw err;
+  }
+}
+
+export async function sendLatestSummary(targetUserId: string, category: 'tw_trends' | 'us_stocks') {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // 獲取今日最新的一筆
+    const { data: summary, error } = await supabase
+      .from('daily_trends_summary')
+      .select('summary_content')
+      .eq('date', today)
+      .eq('category', category)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !summary) {
+      const msg = category === 'tw_trends' ? '今日尚未生成台股分析報告。' : '今日尚未生成美股分析快訊。';
+      return await pushMessage(targetUserId, msg);
+    }
+
+    await pushMessage(targetUserId, summary.summary_content);
+    return { success: true };
+  } catch (err) {
+    console.error(`Failed to send latest ${category}:`, err);
     throw err;
   }
 }

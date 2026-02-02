@@ -19,13 +19,15 @@ export default function TriggerButton({ type, label }: TriggerButtonProps) {
     
     try {
       const secret = 'custom_2026_01_28'; 
-      const endpoint = type === 'tw_trends' ? '/api/cron/daily-digest' : '/api/cron/us-stock';
+      const endpoint = '/api/manual-generate';
       
       const res = await fetch(endpoint, {
-        method: 'GET',
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${secret}`
-        }
+          'Authorization': `Bearer ${secret}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ type, period: 'manual' })
       });
 
       if (res.ok) {

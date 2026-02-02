@@ -26,8 +26,19 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const result = await generateAndSendDigest();
-    return NextResponse.json(result);
+    // 取得台北時間 (UTC+8)
+    const now = new Date();
+    const taipeiTime = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+    const hours = taipeiTime.getUTCHours();
+    
+    // 08:00 -> morning, 18:00 -> evening
+    // 考量到 cron 可能有些微延遲，給予一點緩衝範圍
+    const period = (hours >= 5 && hours <= 11) ? 'morning' : 'evening';
+    
+    console.log(`Cron triggered at Taipei hour ${hours}. Selecting period: ${period}`);
+    
+    const result = await generateAndSendDigest(undefined, period);
+    return NextResponse.json({ ...result, period });
   } catch (error: any) {
     console.error('Cron job failed:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

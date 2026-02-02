@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { replyMessage } from '@/lib/line';
-import { generateAndSendDigest, sendLatestStockPrices, generateAndSendUSStockDigest } from '@/lib/digest-service';
+import { generateAndSendDigest, sendLatestStockPrices, generateAndSendUSStockDigest, sendLatestSummary } from '@/lib/digest-service';
 import { supabase } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
@@ -43,18 +43,16 @@ export async function POST(req: NextRequest) {
         const messageText = (event.message.text || '').trim();
 
         if (messageText === '新消息' || messageText === '新訊息' || messageText === '台股' || messageText === 'TW') {
-          await replyMessage(replyToken, '正在抓取最新台股晨報與趨勢，請稍候... 📊');
           try {
-            await generateAndSendDigest(targetId);
+            await sendLatestSummary(targetId, 'tw_trends');
           } catch (err) {
-            console.error('Manual digest trigger failed:', err);
+            console.error('Manual digest fetch failed:', err);
           }
         } else if (messageText === '美股' || messageText === 'US') {
-          await replyMessage(replyToken, '正在生成最新華爾街美股快訊，請稍候... 🇺🇸');
           try {
-            await generateAndSendUSStockDigest(targetId);
+            await sendLatestSummary(targetId, 'us_stocks');
           } catch (err) {
-            console.error('Manual US stock trigger failed:', err);
+            console.error('Manual US stock fetch failed:', err);
           }
         } else if (messageText === '股票價格' || messageText === '查詢價格') {
           try {
