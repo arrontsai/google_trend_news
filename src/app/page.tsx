@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase';
 import Image from 'next/image';
-import TriggerButton from '@/components/TriggerButton';
 import ReportCard from '@/components/ReportCard';
 
 // Force dynamic rendering to ensure fresh data
@@ -66,10 +65,6 @@ export default async function Home() {
                 <p className="text-zinc-500 text-sm">今日尚無台股摘要。</p>
               </div>
             )}
-            
-            <div className="rounded-2xl bg-zinc-100 p-6 dark:bg-zinc-900/80">
-              <TriggerButton type="tw_trends" label="🚀 立即生成台股報表" />
-            </div>
           </section>
 
           {/* US Stocks Section */}
@@ -91,10 +86,6 @@ export default async function Home() {
                 <p className="text-zinc-500 text-sm">今日尚無美股摘要。</p>
               </div>
             )}
-            
-            <div className="rounded-2xl bg-zinc-100 p-6 dark:bg-zinc-900/80">
-              <TriggerButton type="us_stocks" label="🗽 立即生成美股報表" />
-            </div>
           </section>
         </div>
 
