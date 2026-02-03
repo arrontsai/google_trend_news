@@ -8,17 +8,18 @@ drop table if exists stock_tracking;
 drop table if exists daily_trends_summary;
 drop table if exists line_users;
 
--- 2. 建立每日摘要資料表 (包含最新類別欄位)
+-- 2. 建立每日摘要資料表 (包含最新類別與時段欄位)
 create table daily_trends_summary (
   id bigint primary key generated always as identity,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   date date not null,
   category text default 'tw_trends', -- 'tw_trends' 或 'us_stocks'
+  period text default 'morning', -- 'morning', 'evening', 'manual' 等時段
   summary_content text,
   raw_data jsonb,
   line_sent boolean default false,
-  -- 定義唯一約束：同一日期、同一類別只能有一份摘要
-  unique (date, category)
+  -- 定義唯一約束：同一日期、同一類別、同一時段只能有一份摘要
+  unique (date, category, period)
 );
 
 -- 3. 建立 LINE 用戶追蹤表
